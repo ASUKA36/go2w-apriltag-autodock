@@ -32,7 +32,7 @@ sudo apt install ros-noetic-gazebo-ros-pkgs ros-noetic-gazebo-plugins \
   ros-noetic-move-base
 
 cd ~/catkin_ws/src
-git clone <你的 Gitee 仓库地址> nav_sim
+git clone https://gitee.com/alaurb/go2w_nav_sim.git
 cd ~/catkin_ws
 catkin_make
 source devel/setup.bash
