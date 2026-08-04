@@ -5,6 +5,10 @@
   <arg name="cmd_vel_topic" default="/cmd_vel"/>
   <arg name="image_topic" default="/camera/color/image_raw"/>
   <arg name="camera_info_topic" default="/camera/color/camera_info"/>
+  <arg name="enable_depth" default="false"/>
+  <arg name="enable_imu" default="false"/>
+  <arg name="align_depth" default="false"/>
+  <arg name="show_detection" default="true"/>
 
   <include file="$(find go2w_vision)/launch/detect_tag.launch">
     <arg name="start_realsense" value="$(arg start_realsense)"/>
@@ -12,6 +16,10 @@
     <arg name="tag_size" value="$(arg tag_size)"/>
     <arg name="image_topic" value="$(arg image_topic)"/>
     <arg name="camera_info_topic" value="$(arg camera_info_topic)"/>
+    <arg name="enable_depth" value="$(arg enable_depth)"/>
+    <arg name="enable_imu" value="$(arg enable_imu)"/>
+    <arg name="align_depth" value="$(arg align_depth)"/>
+    <arg name="show_detection" value="$(arg show_detection)"/>
   </include>
 
   <node pkg="go2w_vision" type="tag_follower.py"

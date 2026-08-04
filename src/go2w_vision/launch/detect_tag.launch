@@ -4,15 +4,21 @@
   <arg name="tag_size" default="0.080"/>
   <arg name="image_topic" default="/camera/color/image_raw"/>
   <arg name="camera_info_topic" default="/camera/color/camera_info"/>
+  <!-- AprilTag only needs the color stream. Keep bandwidth-heavy streams off
+       by default so D435i works reliably through WSL/usbipd. -->
+  <arg name="enable_depth" default="false"/>
+  <arg name="enable_imu" default="false"/>
+  <arg name="align_depth" default="false"/>
+  <arg name="show_detection" default="true"/>
 
   <include if="$(arg start_realsense)" file="$(find realsense2_camera)/launch/rs_camera.launch">
     <arg name="enable_color" value="true"/>
-    <arg name="enable_depth" value="true"/>
+    <arg name="enable_depth" value="$(arg enable_depth)"/>
     <arg name="enable_infra1" value="false"/>
     <arg name="enable_infra2" value="false"/>
-    <arg name="enable_gyro" value="true"/>
-    <arg name="enable_accel" value="true"/>
-    <arg name="align_depth" value="true"/>
+    <arg name="enable_gyro" value="$(arg enable_imu)"/>
+    <arg name="enable_accel" value="$(arg enable_imu)"/>
+    <arg name="align_depth" value="$(arg align_depth)"/>
   </include>
 
   <node pkg="apriltag_ros" type="apriltag_ros_continuous_node"
@@ -23,5 +29,12 @@
     <rosparam param="standalone_tags" subst_value="true">
       - {id: $(arg target_id), size: $(arg tag_size), name: target_tag}
     </rosparam>
+    <param name="publish_tag_detections_image" type="bool" value="true"/>
+  </node>
+
+  <!-- apriltag_ros publishes the annotated image on /tag_detections_image. -->
+  <node if="$(arg show_detection)" pkg="image_view" type="image_view"
+        name="tag_detection_view" output="screen">
+    <remap from="image" to="/tag_detections_image"/>
   </node>
 </launch>

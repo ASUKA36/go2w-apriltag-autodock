@@ -94,9 +94,11 @@ rosrun go2w_sim teleop_keyboard.py
 真实 D435i 检测时使用：
 
 ```bash
-roslaunch go2w_vision detect_tag.launch start_realsense:=true \
-  target_id:=0 tag_size:=0.080
+roslaunch go2w_vision follow_tag.launch
 ```
+
+真实相机默认仅启动彩色流，不启动深度、深度对齐和 IMU，以避免 D435i
+在 WSL USB 转发下出现 `Depth stream start failure`。
 
 ## 自动验证
 
