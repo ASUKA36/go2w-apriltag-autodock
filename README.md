@@ -33,6 +33,8 @@ sudo apt install ros-noetic-gazebo-ros-pkgs ros-noetic-gazebo-plugins \
   ros-noetic-robot-state-publisher ros-noetic-xacro ros-noetic-rviz \
   ros-noetic-move-base ros-noetic-apriltag-ros ros-noetic-realsense2-camera
 
+cd ~
+git clone https://gitee.com/alaurb/go2w_nav_sim.git go2w_ws
 cd ~/go2w_ws
 catkin_make
 source devel/setup.bash
