@@ -1,8 +1,8 @@
 # go2w_ws
 
 面向 ROS1 Noetic 的 Go2-W 导航与视觉算法工作空间，针对 Ubuntu 20.04/WSL2 优化。
-模型结构参考
-[`jj7258/unitree_go2w_ros2`](https://github.com/jj7258/unitree_go2w_ros2/tree/main/src/go2w_description/urdf)，
+模型结构和网格来自
+[宇树官方 `unitreerobotics/unitree_ros`](https://github.com/unitreerobotics/unitree_ros/tree/master/robots/go2w_description)，
 使用基础几何体实现轻量 Gazebo 3D 模型。
 
 ## 目录结构
@@ -49,6 +49,22 @@ source ~/go2w_ws/devel/setup.bash
 roslaunch go2w_sim sim.launch
 ```
 
+需要球棍轮腿动力学和对角相位腿轨迹时，可改用：
+
+```bash
+roslaunch go2w_sim physics_sim.launch
+```
+
+需要对比官方 Go2-W 网格外观时，启动独立版本：
+
+```bash
+roslaunch go2w_sim unitree_sim.launch
+```
+
+两个动力学启动入口使用相同的关节、简化碰撞体、控制插件和 `/cmd_vel` 接口；
+`unitree_sim.launch` 只把渲染外观换成宇树官方模型网格。若要打开 RViz，添加
+`rviz:=true`。
+
 终端 2，仅启动导航：
 
 ```bash
@@ -60,7 +76,19 @@ roslaunch go2w_navigation navigation.launch
 
 ```bash
 source ~/go2w_ws/devel/setup.bash
-roslaunch go2w_vision detect_tag.launch start_realsense:=false tag_size:=0.46
+roslaunch go2w_vision detect_tag.launch start_realsense:=false tag_size:=0.16
+```
+
+仿真专用的自动接近与趴下流程：
+
+```bash
+roslaunch go2w_vision follow_tag_sim.launch
+```
+
+键盘遥控需要在独立终端中直接运行（W/S 前后、A/D 横移、Q/E 转向、Z 趴下、X 站立）：
+
+```bash
+rosrun go2w_sim teleop_keyboard.py
 ```
 
 真实 D435i 检测时使用：
@@ -83,4 +111,5 @@ roslaunch go2w_navigation navigation_verify.launch
 
 ## 许可证
 
-工作空间采用 Apache-2.0。Go2-W 简化模型的来源和修改说明见 `NOTICE`。
+工作空间自有代码采用 Apache-2.0；宇树官方 Go2-W 网格按其 BSD-3-Clause
+许可证分发。模型来源和修改说明见 `NOTICE`。

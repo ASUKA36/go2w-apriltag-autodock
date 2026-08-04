@@ -1,0 +1,22 @@
+<launch>
+  <!-- Official Unitree Go2-W visual meshes with the same lightweight collision
+       model, dynamics plugin and control topics as physics_sim.launch. -->
+  <arg name="gui" default="true"/>
+  <arg name="rviz" default="false"/>
+  <arg name="camera" default="true"/>
+  <arg name="control" default="true"/>
+  <arg name="paused" default="false"/>
+  <arg name="world" default="$(find go2w_sim)/worlds/nav_world.world"/>
+  <arg name="map_config" default="$(find go2w_sim)/config/world.yaml"/>
+
+  <include file="$(find go2w_sim)/launch/physics_sim.launch">
+    <arg name="gui" value="$(arg gui)"/>
+    <arg name="rviz" value="$(arg rviz)"/>
+    <arg name="camera" value="$(arg camera)"/>
+    <arg name="control" value="$(arg control)"/>
+    <arg name="paused" value="$(arg paused)"/>
+    <arg name="world" value="$(arg world)"/>
+    <arg name="map_config" value="$(arg map_config)"/>
+    <arg name="official_visual" value="true"/>
+  </include>
+</launch>

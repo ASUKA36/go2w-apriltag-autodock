@@ -29,7 +29,10 @@ def main():
     _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
     # Gazebo's camera benefits from a quiet white border around the code.
-    texture = cv2.copyMakeBorder(binary, 64, 64, 64, 64, cv2.BORDER_CONSTANT, value=255)
+    # The rectified print already contains a white quiet zone. Add only a
+    # small extra margin so the complete texture still fits in the camera at
+    # the 0.30 m visual-servo target distance.
+    texture = cv2.copyMakeBorder(binary, 10, 10, 10, 10, cv2.BORDER_CONSTANT, value=255)
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     if not cv2.imwrite(str(output), texture):

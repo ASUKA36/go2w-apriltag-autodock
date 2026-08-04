@@ -2,6 +2,11 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="go2w_nav_sim">
   <xacro:arg name="camera" default="true"/>
   <xacro:arg name="depth" default="true"/>
+  <xacro:arg name="physics" default="false"/>
+  <xacro:arg name="control" default="true"/>
+  <!-- false: lightweight stick visuals; true: detailed Go2-W reference meshes.
+       Collision and inertial geometry remain lightweight in both modes. -->
+  <xacro:arg name="official_visual" default="false"/>
   <xacro:property name="sim_pi" value="3.141592653589793"/>
 
   <material name="body"><color rgba="0.72 0.76 0.86 1"/></material>
@@ -27,7 +32,12 @@
   <link name="base_footprint"/>
   <link name="base">
     <xacro:box_inertial mass="6.921" x="0.46" y="0.22" z="0.14"/>
-    <visual><geometry><box size="0.46 0.22 0.14"/></geometry><material name="body"/></visual>
+    <xacro:unless value="$(arg official_visual)">
+      <visual><geometry><box size="0.46 0.22 0.14"/></geometry><material name="body"/></visual>
+    </xacro:unless>
+    <xacro:if value="$(arg official_visual)">
+      <visual><geometry><mesh filename="package://go2w_sim/meshes/go2w_official/base.dae"/></geometry></visual>
+    </xacro:if>
     <collision><geometry><box size="0.46 0.22 0.14"/></geometry></collision>
   </link>
   <joint name="base_footprint_joint" type="fixed">
@@ -36,7 +46,9 @@
 
   <link name="Head_upper">
     <xacro:cylinder_inertial mass="0.08" radius="0.07" length="0.10"/>
-    <visual><origin rpy="0 ${sim_pi/2} 0"/><geometry><cylinder radius="0.07" length="0.10"/></geometry><material name="body"/></visual>
+    <xacro:unless value="$(arg official_visual)">
+      <visual><origin rpy="0 ${sim_pi/2} 0"/><geometry><cylinder radius="0.07" length="0.10"/></geometry><material name="body"/></visual>
+    </xacro:unless>
   </link>
   <joint name="Head_upper_joint" type="fixed">
     <parent link="base"/><child link="Head_upper"/><origin xyz="0.275 0 0.01"/>
@@ -45,8 +57,15 @@
   <xacro:macro name="go2w_leg" params="prefix x side rear">
     <link name="${prefix}_hip">
       <xacro:cylinder_inertial mass="0.30" radius="0.045" length="0.0955"/>
-      <visual><origin xyz="0 ${0.04775*side} 0" rpy="${sim_pi/2} 0 0"/>
-        <geometry><cylinder radius="0.045" length="0.0955"/></geometry><material name="leg"/></visual>
+      <xacro:unless value="$(arg official_visual)">
+        <visual><origin xyz="0 ${0.04775*side} 0" rpy="${sim_pi/2} 0 0"/>
+          <geometry><cylinder radius="0.045" length="0.0955"/></geometry><material name="leg"/></visual>
+        <visual><geometry><sphere radius="0.050"/></geometry><material name="leg"/></visual>
+      </xacro:unless>
+      <xacro:if value="$(arg official_visual)">
+        <visual><origin rpy="${sim_pi*(1-side)/2} ${sim_pi*rear} 0"/>
+          <geometry><mesh filename="package://go2w_sim/meshes/go2w_official/hip.dae"/></geometry></visual>
+      </xacro:if>
     </link>
     <joint name="${prefix}_hip_joint" type="revolute">
       <parent link="base"/><child link="${prefix}_hip"/>
@@ -57,7 +76,13 @@
 
     <link name="${prefix}_thigh">
       <xacro:cylinder_inertial mass="0.55" radius="0.027" length="0.213"/>
-      <visual><origin xyz="0 0 -0.1065"/><geometry><cylinder radius="0.027" length="0.213"/></geometry><material name="leg"/></visual>
+      <xacro:unless value="$(arg official_visual)">
+        <visual><origin xyz="0 0 -0.1065"/><geometry><cylinder radius="0.027" length="0.213"/></geometry><material name="leg"/></visual>
+        <visual><origin xyz="0 0 -0.213"/><geometry><sphere radius="0.034"/></geometry><material name="leg"/></visual>
+      </xacro:unless>
+      <xacro:if value="$(arg official_visual)">
+        <visual><geometry><mesh filename="package://go2w_sim/meshes/go2w_official/${'thigh.dae' if side > 0 else 'thigh_mirror.dae'}"/></geometry></visual>
+      </xacro:if>
     </link>
     <joint name="${prefix}_thigh_joint" type="revolute">
       <parent link="${prefix}_hip"/><child link="${prefix}_thigh"/>
@@ -68,7 +93,13 @@
 
     <link name="${prefix}_calf">
       <xacro:cylinder_inertial mass="0.22" radius="0.018" length="0.2264"/>
-      <visual><origin xyz="0 0 -0.1132"/><geometry><cylinder radius="0.018" length="0.2264"/></geometry><material name="leg"/></visual>
+      <xacro:unless value="$(arg official_visual)">
+        <visual><origin xyz="0 0 -0.1132"/><geometry><cylinder radius="0.018" length="0.2264"/></geometry><material name="leg"/></visual>
+        <visual><origin xyz="0 0 -0.2264"/><geometry><sphere radius="0.028"/></geometry><material name="leg"/></visual>
+      </xacro:unless>
+      <xacro:if value="$(arg official_visual)">
+        <visual><geometry><mesh filename="package://go2w_sim/meshes/go2w_official/${'calf.stl' if side > 0 else 'calf_mirror.stl'}"/></geometry><material name="body"/></visual>
+      </xacro:if>
     </link>
     <joint name="${prefix}_calf_joint" type="revolute">
       <parent link="${prefix}_thigh"/><child link="${prefix}_calf"/>
@@ -79,8 +110,13 @@
 
     <link name="${prefix}_foot">
       <xacro:cylinder_inertial mass="0.52" radius="0.10" length="0.06"/>
-      <visual><origin xyz="0 ${0.03*side} 0" rpy="${sim_pi/2} 0 0"/>
-        <geometry><cylinder radius="0.10" length="0.06"/></geometry><material name="dark"/></visual>
+      <xacro:unless value="$(arg official_visual)">
+        <visual><origin xyz="0 ${0.03*side} 0" rpy="${sim_pi/2} 0 0"/>
+          <geometry><cylinder radius="0.10" length="0.06"/></geometry><material name="dark"/></visual>
+      </xacro:unless>
+      <xacro:if value="$(arg official_visual)">
+        <visual><geometry><mesh filename="package://go2w_sim/meshes/go2w_official/${'left_wheel.dae' if side > 0 else 'right_wheel.dae'}"/></geometry></visual>
+      </xacro:if>
       <collision><origin xyz="0 ${0.03*side} 0" rpy="${sim_pi/2} 0 0"/>
         <geometry><cylinder radius="0.10" length="0.06"/></geometry></collision>
     </link>
@@ -90,10 +126,15 @@
       <limit effort="23.7" velocity="30.1"/><dynamics damping="0.2" friction="0.05"/>
     </joint>
 
-    <gazebo reference="${prefix}_hip"><gravity>false</gravity></gazebo>
-    <gazebo reference="${prefix}_thigh"><gravity>false</gravity></gazebo>
-    <gazebo reference="${prefix}_calf"><gravity>false</gravity></gazebo>
-    <gazebo reference="${prefix}_foot"><gravity>false</gravity><mu1>0.8</mu1><mu2>0.8</mu2></gazebo>
+    <xacro:unless value="$(arg physics)">
+      <gazebo reference="${prefix}_hip"><gravity>false</gravity></gazebo>
+      <gazebo reference="${prefix}_thigh"><gravity>false</gravity></gazebo>
+      <gazebo reference="${prefix}_calf"><gravity>false</gravity></gazebo>
+    </xacro:unless>
+    <gazebo reference="${prefix}_foot">
+      <mu1>1.2</mu1><mu2>1.2</mu2><kp>100000</kp><kd>2</kd>
+      <minDepth>0.001</minDepth><maxVel>0.1</maxVel>
+    </gazebo>
   </xacro:macro>
 
   <xacro:go2w_leg prefix="FL" x="0.1934" side="1" rear="0"/>
@@ -136,8 +177,13 @@
     </joint>
   </xacro:if>
 
-  <gazebo reference="base_footprint"><gravity>false</gravity></gazebo>
-  <gazebo reference="base"><gravity>false</gravity><material>Gazebo/White</material></gazebo>
+  <xacro:unless value="$(arg physics)">
+    <gazebo reference="base_footprint"><gravity>false</gravity></gazebo>
+    <gazebo reference="base"><gravity>false</gravity><material>Gazebo/White</material></gazebo>
+  </xacro:unless>
+  <xacro:if value="$(arg physics)">
+    <gazebo reference="base"><material>Gazebo/White</material></gazebo>
+  </xacro:if>
 
   <gazebo reference="lidar_link">
     <sensor name="lidar" type="ray">
@@ -171,14 +217,32 @@
     </gazebo>
   </xacro:if>
 
-  <gazebo>
+  <xacro:unless value="$(arg physics)">
+   <gazebo>
     <plugin name="go2w_planar" filename="libgo2w_planar_plugin.so">
       <commandTopic>/cmd_vel</commandTopic><odometryTopic>/odom</odometryTopic>
+      <postureTopic>/go2w/posture_cmd</postureTopic>
       <odometryFrame>odom</odometryFrame><robotBaseFrame>base_footprint</robotBaseFrame>
       <maxLinear>1.2</maxLinear><maxAngular>1.8</maxAngular>
       <acceleration>1.8</acceleration><angularAcceleration>3.0</angularAcceleration>
       <commandTimeout>0.5</commandTimeout><publishTf>true</publishTf>
     </plugin>
+   </gazebo>
+  </xacro:unless>
+  <xacro:if value="$(arg physics)">
+   <xacro:if value="$(arg control)">
+    <gazebo>
+     <plugin name="go2w_dynamics" filename="libgo2w_dynamics_plugin.so">
+       <commandTopic>/cmd_vel</commandTopic><postureTopic>/go2w/posture_cmd</postureTopic>
+       <odometryTopic>/odom</odometryTopic><odometryFrame>odom</odometryFrame>
+       <robotBaseFrame>base_footprint</robotBaseFrame><publishTf>true</publishTf>
+       <wheelRadius>0.10</wheelRadius><trackWidth>0.285</trackWidth>
+       <maxLinear>1.0</maxLinear><maxAngular>1.5</maxAngular><commandTimeout>0.5</commandTimeout>
+     </plugin>
+    </gazebo>
+   </xacro:if>
+  </xacro:if>
+  <gazebo>
     <plugin name="joint_states" filename="libgazebo_ros_joint_state_publisher.so">
       <updateRate>20</updateRate>
       <jointName>FL_hip_joint,FL_thigh_joint,FL_calf_joint,FL_foot_joint,FR_hip_joint,FR_thigh_joint,FR_calf_joint,FR_foot_joint,RL_hip_joint,RL_thigh_joint,RL_calf_joint,RL_foot_joint,RR_hip_joint,RR_thigh_joint,RR_calf_joint,RR_foot_joint</jointName>

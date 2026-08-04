@@ -1,0 +1,8 @@
+<launch>
+  <!-- The bundled Gazebo wall tag has a 0.16 m black-square edge. -->
+  <include file="$(find go2w_vision)/launch/follow_tag.launch">
+    <arg name="start_realsense" value="false"/>
+    <arg name="target_id" value="0"/>
+    <arg name="tag_size" value="0.16"/>
+  </include>
+</launch>

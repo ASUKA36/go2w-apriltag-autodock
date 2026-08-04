@@ -37,8 +37,8 @@
         <collision name="wall_collision"><geometry><box><size>0.12 1.8 1.6</size></box></geometry></collision>
         <visual name="wall_visual"><geometry><box><size>0.12 1.8 1.6</size></box></geometry>
           <material><ambient>0.72 0.72 0.72 1</ambient><diffuse>0.82 0.82 0.82 1</diffuse></material></visual>
-        <visual name="apriltag_visual"><pose>-0.061 0 0 0 -1.570796 0</pose>
-          <geometry><plane><normal>0 0 1</normal><size>0.70 0.70</size></plane></geometry>
+        <visual name="apriltag_visual"><pose>-0.061 0 -0.25 0 -1.570796 0</pose>
+          <geometry><plane><normal>0 0 1</normal><size>0.204 0.204</size></plane></geometry>
           <material><script><uri>file://media/materials/scripts</uri><uri>file://media/materials/textures</uri>
             <name>Go2WSim/AprilTagWall</name></script></material>
         </visual>
