@@ -1,0 +1,10 @@
+<launch>
+  <include file="$(find go2w_sim)/launch/sim.launch">
+    <arg name="gui" value="false"/>
+    <arg name="rviz" value="false"/>
+    <arg name="camera" value="false"/>
+  </include>
+  <include file="$(find go2w_navigation)/launch/navigation.launch"/>
+  <node pkg="go2w_navigation" type="navigation_test.py" name="go2w_navigation_test"
+        output="screen" required="true"/>
+</launch>

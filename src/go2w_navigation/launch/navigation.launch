@@ -1,0 +1,14 @@
+<launch>
+  <!-- Navigation only. Start sim.launch (or a real robot) separately. -->
+  <node pkg="move_base" type="move_base" name="move_base" output="screen">
+    <rosparam command="load" file="$(find go2w_navigation)/config/move_base.yaml"/>
+    <rosparam command="load" file="$(find go2w_navigation)/config/costmap_common.yaml"
+              ns="global_costmap"/>
+    <rosparam command="load" file="$(find go2w_navigation)/config/costmap_common.yaml"
+              ns="local_costmap"/>
+    <rosparam command="load" file="$(find go2w_navigation)/config/global_costmap.yaml"
+              ns="global_costmap"/>
+    <rosparam command="load" file="$(find go2w_navigation)/config/local_costmap.yaml"
+              ns="local_costmap"/>
+  </node>
+</launch>

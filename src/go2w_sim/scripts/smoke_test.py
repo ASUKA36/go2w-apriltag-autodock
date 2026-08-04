@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""End-to-end interface and motion smoke test for nav_sim."""
+"""End-to-end interface and motion smoke test for go2w_sim."""
 
 import math
 import sys
@@ -56,5 +56,5 @@ def main():
 
 
 if __name__ == "__main__":
-    rospy.init_node("nav_sim_smoke_test")
+    rospy.init_node("go2w_sim_smoke_test")
     sys.exit(main())

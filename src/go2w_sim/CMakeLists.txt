@@ -1,18 +1,14 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(nav_sim)
+project(go2w_sim)
 
 find_package(catkin REQUIRED COMPONENTS
-  actionlib
   gazebo_ros
   geometry_msgs
-  move_base_msgs
   nav_msgs
+  roscpp
   rospy
   sensor_msgs
-  std_srvs
   tf
-  tf2_ros
-  visualization_msgs
 )
 find_package(gazebo REQUIRED)
 
@@ -26,7 +22,6 @@ add_library(go2w_planar_plugin src/go2w_planar_plugin.cpp)
 target_link_libraries(go2w_planar_plugin ${catkin_LIBRARIES} ${GAZEBO_LIBRARIES})
 
 catkin_install_python(PROGRAMS
-  scripts/navigation_test.py
   scripts/smoke_test.py
   scripts/vision_test.py
   scripts/world_map_node.py

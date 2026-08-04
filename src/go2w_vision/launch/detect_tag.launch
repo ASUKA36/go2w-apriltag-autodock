@@ -1,0 +1,27 @@
+<launch>
+  <arg name="start_realsense" default="true"/>
+  <arg name="target_id" default="0"/>
+  <arg name="tag_size" default="0.080"/>
+  <arg name="image_topic" default="/camera/color/image_raw"/>
+  <arg name="camera_info_topic" default="/camera/color/camera_info"/>
+
+  <include if="$(arg start_realsense)" file="$(find realsense2_camera)/launch/rs_camera.launch">
+    <arg name="enable_color" value="true"/>
+    <arg name="enable_depth" value="true"/>
+    <arg name="enable_infra1" value="false"/>
+    <arg name="enable_infra2" value="false"/>
+    <arg name="enable_gyro" value="true"/>
+    <arg name="enable_accel" value="true"/>
+    <arg name="align_depth" value="true"/>
+  </include>
+
+  <node pkg="apriltag_ros" type="apriltag_ros_continuous_node"
+        name="apriltag_detector" output="screen">
+    <remap from="image_rect" to="$(arg image_topic)"/>
+    <remap from="camera_info" to="$(arg camera_info_topic)"/>
+    <rosparam command="load" file="$(find go2w_vision)/config/settings.yaml"/>
+    <rosparam param="standalone_tags" subst_value="true">
+      - {id: $(arg target_id), size: $(arg tag_size), name: target_tag}
+    </rosparam>
+  </node>
+</launch>

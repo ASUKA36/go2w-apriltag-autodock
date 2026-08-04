@@ -1,0 +1,14 @@
+target_id: 0
+target_distance: 0.30
+kp_linear: 0.8
+kp_angular: 1.8
+max_linear: 0.25
+max_angular: 0.8
+distance_tolerance: 0.02
+angle_tolerance_deg: 3.0
+lost_timeout: 0.35
+control_rate: 20.0
+allow_reverse: true
+rotate_in_place_angle_deg: 18.0
+detections_topic: /tag_detections
+cmd_vel_topic: /cmd_vel

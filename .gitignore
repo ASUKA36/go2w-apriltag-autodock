@@ -3,6 +3,7 @@ devel/
 install/
 log/
 .catkin_workspace
+/src/CMakeLists.txt
 *.pyc
 __pycache__/
 .idea/

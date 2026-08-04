@@ -1,0 +1,23 @@
+<launch>
+  <arg name="start_realsense" default="true"/>
+  <arg name="target_id" default="0"/>
+  <arg name="tag_size" default="0.080"/>
+  <arg name="cmd_vel_topic" default="/cmd_vel"/>
+  <arg name="image_topic" default="/camera/color/image_raw"/>
+  <arg name="camera_info_topic" default="/camera/color/camera_info"/>
+
+  <include file="$(find go2w_vision)/launch/detect_tag.launch">
+    <arg name="start_realsense" value="$(arg start_realsense)"/>
+    <arg name="target_id" value="$(arg target_id)"/>
+    <arg name="tag_size" value="$(arg tag_size)"/>
+    <arg name="image_topic" value="$(arg image_topic)"/>
+    <arg name="camera_info_topic" value="$(arg camera_info_topic)"/>
+  </include>
+
+  <node pkg="go2w_vision" type="tag_follower.py"
+        name="tag_follower" output="screen">
+    <rosparam command="load" file="$(find go2w_vision)/config/controller.yaml"/>
+    <param name="target_id" value="$(arg target_id)"/>
+    <param name="cmd_vel_topic" value="$(arg cmd_vel_topic)"/>
+  </node>
+</launch>

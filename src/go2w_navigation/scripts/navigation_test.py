@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify that move_base can plan and drive to a goal in nav_sim."""
+"""Verify that move_base can plan and drive to a goal in go2w_sim."""
 
 import sys
 
@@ -34,5 +34,5 @@ def main():
 
 
 if __name__ == "__main__":
-    rospy.init_node("nav_sim_navigation_test")
+    rospy.init_node("go2w_navigation_test")
     sys.exit(main())

@@ -1,0 +1,15 @@
+material Go2WSim/AprilTagWall
+{
+  technique
+  {
+    pass
+    {
+      lighting off
+      texture_unit
+      {
+        texture apriltag_wall.png
+        filtering none
+      }
+    }
+  }
+}
