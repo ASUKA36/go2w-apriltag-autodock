@@ -1,0 +1,9 @@
+<launch>
+  <include file="$(find nav_sim)/launch/navigation.launch">
+    <arg name="rviz" value="false"/>
+    <arg name="gui" value="false"/>
+    <arg name="camera" value="false"/>
+  </include>
+  <node pkg="nav_sim" type="navigation_test.py" name="nav_sim_navigation_test"
+        output="screen" required="true"/>
+</launch>

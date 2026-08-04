@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>nav_sim</name>
+  <version>0.1.0</version>
+  <description>Lightweight ROS1 navigation simulator with a simplified Unitree Go2-W model.</description>
+  <maintainer email="maintainer@example.com">nav_sim maintainer</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>actionlib</depend>
+  <depend>gazebo_ros</depend>
+  <depend>geometry_msgs</depend>
+  <depend>joint_state_publisher</depend>
+  <depend>move_base_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>robot_state_publisher</depend>
+  <depend>rospy</depend>
+  <depend>rviz</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_srvs</depend>
+  <depend>tf</depend>
+  <depend>tf2_ros</depend>
+  <depend>visualization_msgs</depend>
+  <depend>xacro</depend>
+  <exec_depend>move_base</exec_depend>
+  <exec_depend>gazebo_plugins</exec_depend>
+
+  <export/>
+</package>

@@ -1,0 +1,12 @@
+nav_sim
+Copyright 2026 nav_sim contributors
+
+The simplified Go2-W link dimensions, joint names, hierarchy, axes, limits,
+and sensor mounting references in urdf/go2w_stick.urdf.xacro were derived
+from jj7258/unitree_go2w_ros2:
+https://github.com/jj7258/unitree_go2w_ros2
+
+The reference repository is licensed under the Apache License 2.0. The model
+in nav_sim replaces the original mesh geometry, inertial detail, ROS 2 setup,
+and control implementation with original lightweight primitives and a ROS 1
+Gazebo simulation plugin. No original DAE or STL mesh files are redistributed.
