@@ -12,18 +12,38 @@ go2w_ws/
 ├── src/
 │   ├── go2w_sim/         # Gazebo、Go2-W、RGB-D、激光和仿真地图
 │   ├── go2w_navigation/  # move_base 参数与导航验证
-│   └── go2w_vision/      # D435i/Gazebo 相机 AprilTag 检测与跟随
+│   ├── go2w_vision/      # D435i/Gazebo 相机 AprilTag 检测与跟随
+│   └── go2w_parking/     # 全向矩形机器狗二维停车/入窝仿真
 ├── LICENSE
 └── NOTICE
 ```
 
-三个包按标准 ROS 接口解耦：
+四个包按标准 ROS 接口解耦：
 
 ```text
 go2w_sim ── /map /scan /odom /tf /camera/* ──► navigation / vision
 go2w_navigation ── /cmd_vel ──► go2w_sim 或真实机器狗
 go2w_vision ── /tag_detections，跟随模式下输出 /cmd_vel
 ```
+
+独立的二维停车场景：
+
+```bash
+roslaunch go2w_parking parking_sim.launch
+```
+
+不使用地图的自动泊狗分两个终端启动：
+
+```bash
+# 终端 1：仿真环境、Mid-360 扫描、D435i 画面和 RViz
+roslaunch go2w_parking parking_sim.launch
+
+# 终端 2：停车控制器
+roslaunch go2w_parking auto_dock.launch
+```
+
+方块机器狗支持 `linear.x` 前后、`linear.y` 横移和 `angular.z` 原地转向，
+并发布 `/parking/map`、`/scan`、`/odom`、`/parking/goal` 与 `/parking/parked`。
 
 ## 安装与编译
 

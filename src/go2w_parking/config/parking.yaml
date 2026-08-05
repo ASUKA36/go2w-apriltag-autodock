@@ -1,0 +1,58 @@
+# Robot footprint and Go2-W-like holonomic motion limits.
+# Match the supplied sketch: about 77% of kennel depth and 71% of clear width.
+robot_length: 1.20
+robot_width: 0.80
+max_forward: 0.80
+max_reverse: 0.45
+max_lateral: 0.40
+max_angular: 1.20
+accel_forward: 0.90
+accel_lateral: 0.70
+accel_angular: 2.00
+command_timeout: 0.40
+
+# Initial pose: outside the kennel, facing its opening (+x).
+initial_x: -1.80
+# Deliberately offset/rotate the start so PRE_ALIGN is visible in the demo.
+initial_y: -0.35
+initial_yaw: 0.18
+
+# U-shaped kennel. The opening faces -x.
+kennel_back_x: 1.65
+kennel_front_x: 0.0
+kennel_half_width: 0.62
+wall_thickness: 0.12
+
+# Parking target inside the kennel.
+goal_x: 0.90
+goal_y: 0.0
+goal_yaw: 0.0
+goal_position_tolerance: 0.10
+goal_yaw_tolerance_deg: 8.0
+goal_speed_tolerance: 0.03
+goal_hold_time: 1.0
+
+map_resolution: 0.04
+map_min_x: -3.0
+map_max_x: 2.4
+map_min_y: -2.0
+map_max_y: 2.0
+scan_beams: 180
+scan_range: 4.0
+simulation_rate: 50.0
+publish_rate: 20.0
+
+# Simulated charging-station AprilTag on the kennel back wall.
+publish_tag_detection: true
+tag_id: 0
+tag_size: 0.16
+tag_x: 1.50
+tag_y: 0.0
+tag_max_range: 4.0
+tag_horizontal_fov_deg: 80.0
+
+# Lightweight RGB camera visualization matching the simulated Tag pose.
+camera_width: 424
+camera_height: 240
+camera_fx: 310.0
+camera_fy: 310.0

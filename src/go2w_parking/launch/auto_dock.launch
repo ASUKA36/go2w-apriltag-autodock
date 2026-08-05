@@ -1,0 +1,7 @@
+<launch>
+  <!-- Controller only: sensor drivers or parking_sim.launch must run separately. -->
+  <arg name="config" default="$(find go2w_parking)/config/auto_dock.yaml"/>
+  <node pkg="go2w_parking" type="auto_dock.py" name="auto_dock" output="screen">
+    <rosparam command="load" file="$(arg config)"/>
+  </node>
+</launch>

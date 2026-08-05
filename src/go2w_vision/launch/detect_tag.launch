@@ -35,6 +35,8 @@
   <!-- apriltag_ros publishes the annotated image on /tag_detections_image. -->
   <node if="$(arg show_detection)" pkg="image_view" type="image_view"
         name="tag_detection_view" output="screen">
+    <!-- Never let image_transport select compressedDepth for this RGB8 topic. -->
+    <param name="image_transport" value="raw"/>
     <remap from="image" to="/tag_detections_image"/>
   </node>
 </launch>

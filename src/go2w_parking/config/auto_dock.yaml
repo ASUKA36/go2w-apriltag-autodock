@@ -1,0 +1,38 @@
+target_id: 0
+target_distance: 0.60
+approach_distance: 1.15
+fine_align_distance: 0.82
+
+kp_forward: 0.65
+kp_lateral: 0.95
+kp_bearing: 1.5
+kp_facing: 1.2
+max_approach_speed: 0.52
+max_final_speed: 0.16
+max_lateral_speed: 0.24
+max_angular_speed: 0.75
+search_angular_speed: 0.25
+lidar_seek_speed: 0.22
+lidar_reacquire_stop_distance: 0.72
+prealign_lateral_tolerance: 0.06
+prealign_facing_tolerance_deg: 6.0
+kp_corridor_center: 0.65
+kp_corridor_angle: 1.0
+corridor_max_width: 1.6
+
+position_tolerance: 0.035
+lateral_tolerance: 0.025
+facing_tolerance_deg: 5.0
+hold_time: 1.0
+lost_timeout: 0.35
+filter_alpha: 0.30
+
+front_stop_distance: 0.26
+side_stop_distance: 0.16
+scan_front_half_angle_deg: 22.0
+scan_side_half_angle_deg: 18.0
+
+auto_lie_down: true
+control_rate: 20.0
+trajectory_horizon: 3.0
+trajectory_step: 0.10
