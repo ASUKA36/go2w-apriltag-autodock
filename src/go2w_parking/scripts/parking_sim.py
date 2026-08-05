@@ -2,6 +2,7 @@
 """Lightweight 2-D holonomic parking simulator for a Go2-W-sized robot."""
 
 import math
+import random
 import threading
 
 import rospy
@@ -41,17 +42,27 @@ class ParkingSim:
         self.accel_angular = get("~accel_angular", 2.00)
         self.timeout = get("~command_timeout", 0.40)
 
+        self.spawn_center_x = get("~spawn_region_center_x", -2.0)
+        self.spawn_center_y = get("~spawn_region_center_y", 0.0)
+        self.spawn_region_size = get("~spawn_region_size", 2.0)
+        self.spawn_yaw_random = bool(get("~spawn_yaw_random", True))
         self.initial = (
-            get("~initial_x", -1.80),
-            get("~initial_y", 0.0),
+            get("~initial_x", self.spawn_center_x),
+            get("~initial_y", self.spawn_center_y),
             get("~initial_yaw", 0.0),
         )
-        self.back_x = get("~kennel_back_x", 1.65)
+        self.back_x = get("~kennel_back_x", 1.29)
         self.front_x = get("~kennel_front_x", 0.0)
-        self.half_width = get("~kennel_half_width", 0.62)
-        self.wall_thickness = get("~wall_thickness", 0.12)
+        self.half_width = get("~kennel_half_width", 0.50)
+        self.wall_thickness = get("~wall_thickness", 0.08)
+        self.pad_x = get("~charger_pad_x", 0.70)
+        self.pad_y = get("~charger_pad_y", 0.0)
+        self.pad_length = get("~charger_pad_length", 1.20)
+        self.pad_width = get("~charger_pad_width", 0.70)
+        self.bridge_length = get("~charger_bridge_length", 0.06)
+        self.bridge_width = get("~charger_bridge_width", 0.40)
         self.goal = (
-            get("~goal_x", 0.90),
+            get("~goal_x", 0.60),
             get("~goal_y", 0.0),
             get("~goal_yaw", 0.0),
         )
@@ -71,8 +82,8 @@ class ParkingSim:
         self.publish_rate = get("~publish_rate", 20.0)
         self.publish_tag = get("~publish_tag_detection", True)
         self.tag_id = int(get("~tag_id", 0))
-        self.tag_size = get("~tag_size", 0.16)
-        self.tag_x = get("~tag_x", 1.50)
+        self.tag_size = get("~tag_size", 0.11)
+        self.tag_x = get("~tag_x", 1.25)
         self.tag_y = get("~tag_y", 0.0)
         self.tag_max_range = get("~tag_max_range", 4.0)
         self.tag_half_fov = math.radians(get("~tag_horizontal_fov_deg", 80.0) / 2.0)
@@ -93,7 +104,7 @@ class ParkingSim:
         ]
 
         self.lock = threading.Lock()
-        self.x, self.y, self.yaw = self.initial
+        self.x, self.y, self.yaw = self.sample_spawn_pose()
         self.vx = self.vy = self.wz = 0.0
         self.cmd = Twist()
         self.last_cmd = rospy.Time(0)
@@ -130,7 +141,26 @@ class ParkingSim:
         self.goal_pub.publish(self.make_goal())
         self.camera_info_pub.publish(self.make_camera_info(rospy.Time.now()))
         self.publish_state(rospy.Time.now())
-        rospy.loginfo("Go2-W parking sim ready: holonomic /cmd_vel, goal=(%.2f, %.2f)", self.goal[0], self.goal[1])
+        rospy.loginfo(
+            "Go2-W parking sim ready: spawn region center=(%.2f, %.2f) size=%.2f, goal=(%.2f, %.2f)",
+            self.spawn_center_x, self.spawn_center_y, self.spawn_region_size,
+            self.goal[0], self.goal[1],
+        )
+
+    def sample_spawn_pose(self):
+        """Uniform sample inside the configured square, optionally random yaw."""
+        half = 0.5 * self.spawn_region_size
+        for _ in range(40):
+            x = self.spawn_center_x + random.uniform(-half, half)
+            y = self.spawn_center_y + random.uniform(-half, half)
+            if self.spawn_yaw_random:
+                yaw = random.uniform(-math.pi, math.pi)
+            else:
+                yaw = self.initial[2]
+            if not self.collides(x, y, yaw):
+                return x, y, wrap_angle(yaw)
+        rospy.logwarn("Spawn sampling fell back to region center")
+        return self.spawn_center_x, self.spawn_center_y, self.initial[2]
 
     def command_callback(self, message):
         with self.lock:
@@ -143,7 +173,7 @@ class ParkingSim:
         self.set_pose(message.pose.pose.position.x, message.pose.pose.position.y, yaw)
 
     def reset_callback(self, _request):
-        self.set_pose(*self.initial)
+        self.set_pose(*self.sample_spawn_pose())
         return EmptyResponse()
 
     def set_pose(self, x, y, yaw):
@@ -388,7 +418,8 @@ class ParkingSim:
         detection.size = [self.tag_size]
         detection.pose.header = message.header
         detection.pose.pose.pose.position.x = optical_x
-        detection.pose.pose.pose.position.y = 0.0
+        # Synthetic optical-down so near range looks like Tag dropping to image bottom.
+        detection.pose.pose.pose.position.y = clamp(0.28 * (0.95 - optical_z), 0.0, 0.40)
         detection.pose.pose.pose.position.z = optical_z
         # Tag +Z normal faces out of the kennel (-map x). Express that normal
         # in the camera optical frame as a rotation about optical +Y.
@@ -485,6 +516,30 @@ class ParkingSim:
                                         self.color(0.28, 0.66, 0.20), stamp, self.yaw))
         for index, wall in enumerate(self.walls, 1):
             markers.append(self.cube_marker(index, "map", *wall, self.color(0.15, 0.35, 0.75), stamp))
+
+        # Charging dock pad in front of the Tag (black frame + two grey contacts + bridge).
+        markers.append(self.cube_marker(
+            30, "map", self.pad_x, self.pad_y, self.pad_length, self.pad_width,
+            self.color(0.08, 0.08, 0.10), stamp))
+        contact_len = self.pad_length * 0.42
+        contact_wid = self.pad_width * 0.38
+        markers.append(self.cube_marker(
+            31, "map", self.pad_x - self.pad_length * 0.18, self.pad_y + self.pad_width * 0.22,
+            contact_len, contact_wid, self.color(0.72, 0.74, 0.76), stamp))
+        markers.append(self.cube_marker(
+            32, "map", self.pad_x - self.pad_length * 0.18, self.pad_y - self.pad_width * 0.22,
+            contact_len, contact_wid, self.color(0.72, 0.74, 0.76), stamp))
+        bridge_x = self.pad_x + 0.5 * (self.pad_length + self.bridge_length)
+        markers.append(self.cube_marker(
+            33, "map", bridge_x, self.pad_y, self.bridge_length, self.bridge_width,
+            self.color(0.10, 0.10, 0.12), stamp))
+
+        # Spawn region outline (2 m square).
+        markers.append(self.cube_marker(
+            34, "map", self.spawn_center_x, self.spawn_center_y,
+            self.spawn_region_size, self.spawn_region_size,
+            self.color(0.95, 0.75, 0.15, 0.18), stamp))
+
         goal = self.cube_marker(10, "map", self.goal[0], self.goal[1], self.length, self.width,
                                 self.color(0.2, 0.85, 0.25, 0.28), stamp, self.goal[2])
         markers.append(goal)
@@ -504,6 +559,11 @@ class ParkingSim:
                                         self.color(0.1, 0.2, 0.55)))
         markers.append(self.text_marker(23, self.tag_x, self.tag_y, 0.30, "TAG36H11_0 / CHARGER", stamp,
                                         self.color(0.85, 0.35, 0.02)))
+        markers.append(self.text_marker(24, self.pad_x, self.pad_y - 0.45, 0.12, "CHARGE PAD", stamp,
+                                        self.color(0.2, 0.2, 0.2)))
+        markers.append(self.text_marker(
+            25, self.spawn_center_x, self.spawn_center_y - 1.15, 0.12,
+            "SPAWN 2x2 @ 2m", stamp, self.color(0.75, 0.55, 0.05)))
         status_text = "PARKED" if self.parked else ("COLLISION" if self.collision else "RUNNING")
         markers.append(self.text_marker(22, self.goal[0], -0.92, 0.24, status_text,
                                         stamp, self.color(0.05, 0.65, 0.12)))

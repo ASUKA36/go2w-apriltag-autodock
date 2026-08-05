@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Mapless AprilTag + lidar visual-servo docking controller for Go2-W."""
+"""Mapless AprilTag + lidar visual-servo docking controller for Go2-W.
+
+Docking starts at PREALIGN_GATE (no search / lidar-seek beforehand):
+  1) PREALIGN_GATE  – face Tag normal, strafe to centerline, hold front lidar 1.5±0.05 m
+  2) ENTER_BAY      – camera+lidar straight entry; near pad switch to lidar-only
+  3) CROUCH         – stop and send lie_down / squat posture
+"""
 
 import math
 import threading
@@ -10,6 +16,7 @@ from geometry_msgs.msg import Point, PoseStamped, Twist
 from nav_msgs.msg import Path
 from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Bool, Float32, String
+from std_srvs.srv import Empty
 from visualization_msgs.msg import Marker, MarkerArray
 
 
@@ -22,67 +29,73 @@ def wrap_angle(value):
 
 
 class AutoDock:
-    SEARCH = "SEARCH_TAG"
-    LIDAR_SEEK = "LIDAR_GARAGE_SEEK"
-    PRE_ALIGN = "PRE_ALIGN_OUTSIDE"
-    APPROACH = "APPROACH"
-    ENTER = "LIDAR_CENTERED_ENTRY"
-    ALIGN = "FINE_ALIGN"
-    HOLD = "HOLD"
+    WAIT_TAG = "WAIT_TAG"
+    PREALIGN_GATE = "PREALIGN_GATE"
+    ENTER_BAY = "ENTER_BAY"
+    CROUCH = "CROUCH"
     PARKED = "PARKED"
     LOST = "TAG_LOST"
 
     def __init__(self):
         get = rospy.get_param
         self.target_id = int(get("~target_id", 0))
-        self.target_distance = get("~target_distance", 0.60)
-        self.approach_distance = get("~approach_distance", 1.15)
-        self.fine_align_distance = get("~fine_align_distance", 0.82)
-        self.kp_forward = get("~kp_forward", 0.65)
+        # Stage-1 gate: front lidar hold distance.
+        self.gate_front_distance = get("~gate_front_distance", 1.50)
+        self.gate_front_tolerance = get("~gate_front_tolerance", 0.05)
+        self.gate_facing_tol = math.radians(get("~gate_facing_tolerance_deg", 3.0))
+        self.gate_lateral_tol = get("~gate_lateral_tolerance", 0.06)
+        self.gate_hold_time = get("~gate_hold_time", 2.0)
+        # Stage-2 / 3: lidar final stop in front of Tag / back wall.
+        self.target_distance = get("~target_distance", 0.35)
+        self.final_front_tolerance = get("~final_front_tolerance", 0.05)
+        self.final_lateral_tolerance = get("~final_lateral_tolerance", 0.05)
+        # When Tag optical y/z exceeds this, treat Tag as at bottom of image.
+        self.tag_bottom_yx_ratio = get("~tag_bottom_yx_ratio", 0.22)
+        self.tag_bottom_range = get("~tag_bottom_range", 0.55)
+
+        self.kp_forward = get("~kp_forward", 0.55)
         self.kp_lateral = get("~kp_lateral", 0.95)
-        self.kp_bearing = get("~kp_bearing", 1.5)
         self.kp_facing = get("~kp_facing", 1.2)
-        self.max_approach = get("~max_approach_speed", 0.52)
-        self.max_final = get("~max_final_speed", 0.16)
-        self.max_lateral = get("~max_lateral_speed", 0.24)
-        self.max_angular = get("~max_angular_speed", 0.75)
-        self.search_angular = get("~search_angular_speed", 0.25)
-        self.lidar_seek_speed = get("~lidar_seek_speed", 0.22)
-        self.lidar_reacquire_stop = get("~lidar_reacquire_stop_distance", 0.72)
-        self.prealign_lateral_tol = get("~prealign_lateral_tolerance", 0.06)
-        self.prealign_facing_tol = math.radians(
-            get("~prealign_facing_tolerance_deg", 6.0)
-        )
+        self.max_approach = get("~max_approach_speed", 0.38)
+        self.max_final = get("~max_final_speed", 0.12)
+        self.max_lateral = get("~max_lateral_speed", 0.18)
+        self.max_angular = get("~max_angular_speed", 0.60)
         self.kp_corridor_center = get("~kp_corridor_center", 0.65)
         self.kp_corridor_angle = get("~kp_corridor_angle", 1.0)
         self.corridor_max_width = get("~corridor_max_width", 1.6)
-        self.position_tolerance = get("~position_tolerance", 0.035)
-        self.lateral_tolerance = get("~lateral_tolerance", 0.025)
-        self.facing_tolerance = math.radians(get("~facing_tolerance_deg", 5.0))
-        self.hold_time = get("~hold_time", 1.0)
         self.lost_timeout = get("~lost_timeout", 0.35)
+        # Longer grace while squaring up so brief Tag dropouts do not chatter TAG_LOST.
+        self.prealign_lost_timeout = get("~prealign_lost_timeout", 2.0)
         self.alpha = clamp(get("~filter_alpha", 0.30), 0.0, 1.0)
-        self.front_stop = get("~front_stop_distance", 0.26)
+        self.front_stop = get("~front_stop_distance", 0.22)
         self.side_stop = get("~side_stop_distance", 0.16)
         self.front_half_angle = math.radians(get("~scan_front_half_angle_deg", 22.0))
         self.side_half_angle = math.radians(get("~scan_side_half_angle_deg", 18.0))
         self.auto_lie_down = get("~auto_lie_down", True)
+        self.auto_reset_after_park = get("~auto_reset_after_park", True)
+        self.reset_delay = get("~reset_delay", 1.5)
+        self.restart_after_reset = get("~restart_after_reset", True)
         self.control_rate = get("~control_rate", 20.0)
         self.trajectory_horizon = get("~trajectory_horizon", 3.0)
         self.trajectory_step = get("~trajectory_step", 0.10)
 
         self.lock = threading.Lock()
         self.last_seen = None
-        self.tag_x = self.tag_z = self.facing = 0.0
+        self.tag_x = self.tag_y = self.tag_z = self.facing = 0.0
         self.scan = None
-        self.state = self.SEARCH
-        self.hold_started = None
+        self.state = self.WAIT_TAG
+        self.gate_done = False
+        self.gate_ok_since = None
+        self.lidar_only = False
         self.completed = False
+        self.reset_pending = False
+        self.enabled = rospy.get_param("~start_enabled", True)
 
         self.cmd_pub = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
         self.state_pub = rospy.Publisher("/auto_dock/state", String, queue_size=1, latch=True)
         self.success_pub = rospy.Publisher("/auto_dock/success", Bool, queue_size=1, latch=True)
         self.posture_pub = rospy.Publisher("/go2w/posture_cmd", String, queue_size=1, latch=True)
+        self.reset_pub = rospy.Publisher("/go2w/sim_reset", String, queue_size=1)
         self.trajectory_pub = rospy.Publisher(
             "/auto_dock/predicted_path", Path, queue_size=1
         )
@@ -100,12 +113,22 @@ class AutoDock:
         )
         rospy.Subscriber("/tag_detections", AprilTagDetectionArray, self.tag_callback, queue_size=1)
         rospy.Subscriber("/scan", LaserScan, self.scan_callback, queue_size=1)
+        rospy.Subscriber("/control_mode", String, self.mode_callback, queue_size=1)
         self.timer = rospy.Timer(rospy.Duration(1.0 / self.control_rate), self.control)
         rospy.on_shutdown(self.stop)
-        self.set_state(self.SEARCH)
+        self.set_state(self.WAIT_TAG)
         self.success_pub.publish(False)
         self.lidar_lock_pub.publish(False)
-        rospy.loginfo("Mapless auto dock ready: tag=%d, target distance=%.3f m", self.target_id, self.target_distance)
+        rospy.loginfo(
+            "Mapless auto dock ready: tag=%d, gate=%.2fm, final=%.2fm, enabled=%s",
+            self.target_id, self.gate_front_distance, self.target_distance, self.enabled,
+        )
+
+    def reset_cycle_flags(self):
+        self.gate_done = False
+        self.gate_ok_since = None
+        self.lidar_only = False
+        self.completed = False
 
     @staticmethod
     def facing_from_quaternion(q):
@@ -127,23 +150,45 @@ class AutoDock:
             pose = detection.pose.pose.pose
             facing = self.facing_from_quaternion(pose.orientation)
             if pose.position.z > 0.0 and facing is not None:
-                candidates.append((pose.position.z, pose.position.x, facing))
+                candidates.append(
+                    (pose.position.z, pose.position.x, pose.position.y, facing)
+                )
         if not candidates:
             return
-        z, x, facing = min(candidates)
+        z, x, y, facing = min(candidates)
         now = rospy.Time.now()
         with self.lock:
             if self.last_seen is None:
-                self.tag_x, self.tag_z, self.facing = x, z, facing
+                self.tag_x, self.tag_y, self.tag_z, self.facing = x, y, z, facing
             else:
                 self.tag_x = self.alpha*x + (1.0-self.alpha)*self.tag_x
+                self.tag_y = self.alpha*y + (1.0-self.alpha)*self.tag_y
                 self.tag_z = self.alpha*z + (1.0-self.alpha)*self.tag_z
-                self.facing = wrap_angle(self.facing + self.alpha*wrap_angle(facing-self.facing))
+                self.facing = wrap_angle(
+                    self.facing + self.alpha*wrap_angle(facing-self.facing)
+                )
             self.last_seen = now
 
     def scan_callback(self, message):
         with self.lock:
             self.scan = message
+
+    def mode_callback(self, message):
+        mode = message.data.strip().lower()
+        enable = mode == "auto"
+        with self.lock:
+            was_enabled = self.enabled
+            self.enabled = enable
+            if enable and not was_enabled:
+                self.reset_cycle_flags()
+                self.state = self.WAIT_TAG
+        if enable and not was_enabled:
+            self.set_state(self.WAIT_TAG)
+            self.success_pub.publish(False)
+            rospy.loginfo("Auto dock enabled by /control_mode")
+        elif (not enable) and was_enabled:
+            self.stop()
+            rospy.loginfo("Auto dock paused; manual teleop owns /cmd_vel")
 
     def sector_min(self, center, half_width):
         scan = self.scan
@@ -172,10 +217,7 @@ class AutoDock:
         return slope, intercept
 
     def corridor_geometry(self):
-        """Estimate kennel center and heading from Mid-360 wall returns.
-
-        The fit is performed directly in base_link. It uses no map or odometry.
-        """
+        """Estimate kennel center and heading from Mid-360 wall returns."""
         scan = self.scan
         if scan is None:
             return None
@@ -263,7 +305,7 @@ class AutoDock:
         path.header.frame_id = "base_link"
         x = y = yaw = 0.0
         steps = max(1, int(self.trajectory_horizon / self.trajectory_step))
-        for index in range(steps + 1):
+        for _ in range(steps + 1):
             pose = PoseStamped()
             pose.header = path.header
             pose.pose.position.x, pose.pose.position.y = x, y
@@ -276,12 +318,72 @@ class AutoDock:
             yaw = wrap_angle(yaw + command.angular.z * self.trajectory_step)
         self.trajectory_pub.publish(path)
 
-    def lidar_seek_command(self, corridor):
-        center, heading, _width = corridor
+    def orientation_aligned(self, x, facing):
+        """Aligned when Tag is centered laterally and body faces Tag normal."""
+        return (
+            abs(facing) <= self.gate_facing_tol
+            and abs(x) <= self.gate_lateral_tol
+        )
+
+    def tag_at_image_bottom(self, y, z):
+        """Tag dropped to the lower part of the camera frame (optical y down)."""
+        if z <= self.tag_bottom_range:
+            return True
+        if z <= 1e-3:
+            return False
+        return (y / z) >= self.tag_bottom_yx_ratio
+
+    def prealign_gate_command(self, x, z, facing, front):
+        """Stage 1: strafe to Tag centerline + face Tag normal, then hold 1.5 m.
+
+        Bearing is not used — facing + lateral x alone put the dog on the
+        Tag frontal axis without yaw fighting.
+        """
+        del z
         command = Twist()
-        front = self.sector_min(0.0, self.front_half_angle)
-        if front > self.lidar_reacquire_stop and abs(heading) < math.radians(28.0):
-            command.linear.x = self.lidar_seek_speed
+        command.linear.y = clamp(-self.kp_lateral * x,
+                                 -self.max_lateral, self.max_lateral)
+        command.angular.z = clamp(self.kp_facing * facing,
+                                  -self.max_angular, self.max_angular)
+
+        aligned = self.orientation_aligned(x, facing)
+        if aligned and math.isfinite(front):
+            range_error = front - self.gate_front_distance
+            command.linear.x = clamp(
+                self.kp_forward * range_error, -self.max_final, self.max_approach)
+        else:
+            command.linear.x = 0.0
+        return command
+
+    def enter_bay_command(self, x, z, facing, corridor, front):
+        """Stage 2a: camera + lidar keep a straight entry toward the pad."""
+        command = Twist()
+        center = corridor[0] if corridor is not None else 0.0
+        heading = corridor[1] if corridor is not None else 0.0
+        if math.isfinite(front) and front < 8.0:
+            range_error = front - self.target_distance
+        else:
+            range_error = z - self.target_distance
+        speed_limit = self.max_final if front < 0.70 else self.max_approach
+        command.linear.x = clamp(self.kp_forward * range_error,
+                                 -self.max_final, speed_limit)
+        command.linear.y = clamp(
+            -self.kp_lateral * x + self.kp_corridor_center * center,
+            -self.max_lateral, self.max_lateral)
+        command.angular.z = clamp(
+            self.kp_facing * facing + self.kp_corridor_angle * heading,
+            -self.max_angular, self.max_angular)
+        return command
+
+    def lidar_final_command(self, corridor, front):
+        """Stage 2b: Tag at image bottom / unreliable — lidar-only final pose."""
+        command = Twist()
+        center = corridor[0] if corridor is not None else 0.0
+        heading = corridor[1] if corridor is not None else 0.0
+        if math.isfinite(front):
+            command.linear.x = clamp(
+                self.kp_forward * (front - self.target_distance),
+                -self.max_final, self.max_final)
         command.linear.y = clamp(self.kp_corridor_center * center,
                                  -self.max_lateral, self.max_lateral)
         command.angular.z = clamp(self.kp_corridor_angle * heading,
@@ -291,94 +393,106 @@ class AutoDock:
     def control(self, _event):
         now = rospy.Time.now()
         with self.lock:
-            last_seen, x, z, facing = self.last_seen, self.tag_x, self.tag_z, self.facing
+            last_seen = self.last_seen
+            x, y, z, facing = self.tag_x, self.tag_y, self.tag_z, self.facing
             completed = self.completed
+            enabled = self.enabled
+            gate_done = self.gate_done
+            lidar_only = self.lidar_only
+        corridor = self.corridor_geometry()
+        self.publish_lidar_estimate(corridor)
+        front = self.sector_min(0.0, self.front_half_angle)
+        if not enabled:
+            return
         if completed:
             self.stop()
             return
 
-        corridor = self.corridor_geometry()
-        self.publish_lidar_estimate(corridor)
+        lose_after = self.lost_timeout if gate_done else self.prealign_lost_timeout
+        tag_fresh = (
+            last_seen is not None
+            and (now - last_seen).to_sec() <= lose_after
+        )
 
-        if last_seen is None:
+        # --- No Tag / lost Tag: no search before pre-align ---
+        if not tag_fresh:
+            if not gate_done:
+                self.gate_ok_since = None
+                if last_seen is None:
+                    self.set_state(self.WAIT_TAG)
+                else:
+                    self.set_state(self.LOST)
+                self.stop()
+                return
             if corridor is not None:
-                self.set_state(self.LIDAR_SEEK)
-                command = self.lidar_seek_command(corridor)
-            else:
-                self.set_state(self.SEARCH)
+                self.lidar_only = True
+                self.set_state(self.ENTER_BAY)
+                command = self.lidar_final_command(corridor, front)
+                if self.lidar_final_ready(corridor, front):
+                    self.finish_crouch()
+                    return
+                self.publish_command(command)
+                return
+            self.set_state(self.LOST)
+            self.stop()
+            return
+
+        # ========== Stage 1: PREALIGN_GATE (first active stage) ==========
+        if not gate_done:
+            self.set_state(self.PREALIGN_GATE)
+            command = self.prealign_gate_command(x, z, facing, front)
+            oriented = self.orientation_aligned(x, facing)
+            ranged = (
+                math.isfinite(front)
+                and abs(front - self.gate_front_distance) <= self.gate_front_tolerance
+            )
+            if oriented and ranged:
+                if self.gate_ok_since is None:
+                    self.gate_ok_since = now
+                    rospy.loginfo(
+                        "Gate conditions met; holding %.1fs (facing=%.1fdeg x=%.3fm front=%.2fm)",
+                        self.gate_hold_time, math.degrees(facing), x, front,
+                    )
                 command = Twist()
-                command.angular.z = self.search_angular
+                held = (now - self.gate_ok_since).to_sec() >= self.gate_hold_time
+                if held:
+                    self.gate_done = True
+                    self.gate_ok_since = None
+                    rospy.loginfo(
+                        "Pre-align gate stable for %.1fs; entering stage 2",
+                        self.gate_hold_time,
+                    )
+                    self.set_state(self.ENTER_BAY)
+            else:
+                self.gate_ok_since = None
             self.publish_command(command)
             return
-        if (now - last_seen).to_sec() > self.lost_timeout:
-            self.hold_started = None
-            if corridor is not None:
-                self.set_state(self.LIDAR_SEEK)
-                self.publish_command(self.lidar_seek_command(corridor))
-            else:
-                self.set_state(self.LOST)
-                self.stop()
-            return
 
-        distance_error = z - self.target_distance
-        bearing = math.atan2(x, z)
-        command = Twist()
-
-        corridor_center = corridor[0] if corridor is not None else 0.0
-        corridor_angle = corridor[1] if corridor is not None else 0.0
-
-        if z > self.approach_distance:
-            outside_aligned = (
-                abs(x) <= self.prealign_lateral_tol
-                and abs(facing) <= self.prealign_facing_tol
+        # ========== Stage 2: ENTER_BAY (held until stage 3) ==========
+        if (not lidar_only) and self.tag_at_image_bottom(y, z):
+            self.lidar_only = True
+            rospy.loginfo(
+                "Tag at image bottom (y/z=%.3f, z=%.2f); lidar-only within stage 2",
+                (y / z) if z > 1e-3 else 0.0, z,
             )
-            if not outside_aligned:
-                self.set_state(self.PRE_ALIGN)
-                # Explicitly prohibit entry until lateral and heading errors
-                # are corrected outside the kennel.
-                command.linear.x = 0.0
-                command.linear.y = clamp(-self.kp_lateral * x,
-                                         -self.max_lateral, self.max_lateral)
-                command.angular.z = clamp(
-                    self.kp_facing * facing - 0.35 * self.kp_bearing * bearing,
-                    -self.max_angular, self.max_angular)
-            else:
-                self.set_state(self.APPROACH)
-                command.linear.x = clamp(self.kp_forward * distance_error,
-                                         0.0, self.max_approach)
-                command.linear.y = clamp(self.kp_corridor_center * corridor_center,
-                                         -0.12, 0.12)
-                command.angular.z = clamp(
-                    -self.kp_bearing * bearing + self.kp_corridor_angle * corridor_angle,
-                    -self.max_angular, self.max_angular)
-        else:
-            self.set_state(self.ENTER if z > self.fine_align_distance else self.ALIGN)
-            speed_limit = self.max_final if z <= self.fine_align_distance else self.max_approach
-            command.linear.x = clamp(self.kp_forward * distance_error,
-                                     -self.max_final, speed_limit)
-            command.linear.y = clamp(-self.kp_lateral * x
-                                     + self.kp_corridor_center * corridor_center,
-                                     -self.max_lateral, self.max_lateral)
-            command.angular.z = clamp(
-                -0.55*self.kp_bearing*bearing + self.kp_facing*facing
-                + self.kp_corridor_angle*corridor_angle,
-                -self.max_angular, self.max_angular)
 
-        inside = (abs(distance_error) <= self.position_tolerance
-                  and abs(x) <= self.lateral_tolerance
-                  and abs(facing) <= self.facing_tolerance)
-        if inside:
-            command = Twist()
-            self.set_state(self.HOLD)
-            if self.hold_started is None:
-                self.hold_started = now
-            elif (now - self.hold_started).to_sec() >= self.hold_time:
-                self.finish()
-                return
+        self.set_state(self.ENTER_BAY)
+        if self.lidar_only:
+            command = self.lidar_final_command(corridor, front)
         else:
-            self.hold_started = None
-
+            command = self.enter_bay_command(x, z, facing, corridor, front)
+        if self.lidar_final_ready(corridor, front):
+            self.finish_crouch()
+            return
         self.publish_command(command)
+
+    def lidar_final_ready(self, corridor, front):
+        if not math.isfinite(front):
+            return False
+        if abs(front - self.target_distance) > self.final_front_tolerance:
+            return False
+        center = corridor[0] if corridor is not None else float("inf")
+        return abs(center) <= self.final_lateral_tolerance
 
     def set_state(self, state):
         if state != self.state:
@@ -386,15 +500,52 @@ class AutoDock:
             self.state = state
         self.state_pub.publish(String(self.state))
 
-    def finish(self):
+    def finish_crouch(self):
+        """Stage 3: stop and squat / lie down on the charging pad."""
         self.stop()
-        self.set_state(self.PARKED)
+        self.set_state(self.CROUCH)
         self.success_pub.publish(True)
         if self.auto_lie_down:
-            self.posture_pub.publish(String("lie_down"))
+            self.posture_pub.publish(String(data="lie_down"))
+            rospy.loginfo("Stage 3: crouch / lie_down commanded")
         with self.lock:
             self.completed = True
+            already_pending = self.reset_pending
+            if self.auto_reset_after_park:
+                self.reset_pending = True
+        self.set_state(self.PARKED)
         rospy.loginfo("Auto dock complete; charging pose reached")
+        if self.auto_reset_after_park and not already_pending:
+            rospy.Timer(
+                rospy.Duration(self.reset_delay),
+                self.reset_after_park,
+                oneshot=True,
+            )
+
+    def reset_after_park(self, _event):
+        try:
+            rospy.wait_for_service("/parking/reset", timeout=0.3)
+            rospy.ServiceProxy("/parking/reset", Empty)()
+            rospy.loginfo("Called /parking/reset")
+        except Exception:
+            pass
+        self.reset_pub.publish(String(data="reset"))
+        self.posture_pub.publish(String(data="stand_up"))
+        self.stop()
+        with self.lock:
+            self.reset_cycle_flags()
+            self.last_seen = None
+            self.tag_x = self.tag_y = self.tag_z = self.facing = 0.0
+            self.reset_pending = False
+            if self.restart_after_reset:
+                self.state = self.WAIT_TAG
+        self.success_pub.publish(False)
+        if self.restart_after_reset:
+            self.set_state(self.WAIT_TAG)
+            rospy.loginfo("Reset to initial pose; waiting for Tag / pre-align")
+        else:
+            self.set_state(self.PARKED)
+            rospy.loginfo("Reset to initial pose; waiting for next auto cycle")
 
     def stop(self):
         command = Twist()

@@ -11,20 +11,33 @@ accel_lateral: 0.70
 accel_angular: 2.00
 command_timeout: 0.40
 
-# Initial pose: outside the kennel, facing its opening (+x).
-initial_x: -1.80
-# Deliberately offset/rotate the start so PRE_ALIGN is visible in the demo.
-initial_y: -0.35
-initial_yaw: 0.18
+# Spawn region: 2 m square centered 2 m in front of the kennel opening (x=0).
+# Each reset samples a uniform pose inside the square with a random yaw.
+spawn_region_center_x: -2.0
+spawn_region_center_y: 0.0
+spawn_region_size: 2.0
+spawn_yaw_random: true
+# Fallback fixed pose (only used when spawn_yaw_random is false).
+initial_x: -2.0
+initial_y: 0.0
+initial_yaw: 0.0
 
-# U-shaped kennel. The opening faces -x.
-kennel_back_x: 1.65
+# U-shaped kennel. The opening faces -x. Wall height is 1.2 m (3-D world).
+kennel_back_x: 1.29
 kennel_front_x: 0.0
-kennel_half_width: 0.62
-wall_thickness: 0.12
+kennel_half_width: 0.50
+wall_thickness: 0.08
 
-# Parking target inside the kennel.
-goal_x: 0.90
+# Charging pad: 1.2 m (X) x 0.7 m (Y), center 0.55 m in front of the Tag.
+charger_pad_x: 0.70
+charger_pad_y: 0.0
+charger_pad_length: 1.20
+charger_pad_width: 0.70
+charger_bridge_length: 0.06
+charger_bridge_width: 0.40
+
+# Parking target: head ~0.35 m from Tag when crouched (camera_offset ~0.30).
+goal_x: 0.60
 goal_y: 0.0
 goal_yaw: 0.0
 goal_position_tolerance: 0.10
@@ -33,22 +46,23 @@ goal_speed_tolerance: 0.03
 goal_hold_time: 1.0
 
 map_resolution: 0.04
-map_min_x: -3.0
+map_min_x: -5.5
 map_max_x: 2.4
 map_min_y: -2.0
 map_max_y: 2.0
 scan_beams: 180
-scan_range: 4.0
+scan_range: 8.0
 simulation_rate: 50.0
 publish_rate: 20.0
 
 # Simulated charging-station AprilTag on the kennel back wall.
+# Tag side length 0.11 m; center height 0.30 m above ground (3-D).
 publish_tag_detection: true
 tag_id: 0
-tag_size: 0.16
-tag_x: 1.50
+tag_size: 0.11
+tag_x: 1.25
 tag_y: 0.0
-tag_max_range: 4.0
+tag_max_range: 6.0
 tag_horizontal_fov_deg: 80.0
 
 # Lightweight RGB camera visualization matching the simulated Tag pose.
@@ -56,3 +70,4 @@ camera_width: 424
 camera_height: 240
 camera_fx: 310.0
 camera_fy: 310.0
+camera_offset: 0.30

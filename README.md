@@ -90,14 +90,12 @@ roslaunch go2w_parking auto_dock.launch
 状态流程：
 
 ```text
-SEARCH_TAG / LIDAR_GARAGE_SEEK
-  -> PRE_ALIGN_OUTSIDE
-  -> APPROACH
-  -> LIDAR_CENTERED_ENTRY
-  -> FINE_ALIGN
-  -> HOLD
-  -> PARKED
+PREALIGN_GATE -> ENTER_BAY -> CROUCH
 ```
+
+- `PREALIGN_GATE`：在窝外按 Tag 法向、横向误差和前方激光距离完成预对准；
+- `ENTER_BAY`：相机与左右墙激光共同引导入窝，近距离时转为激光终段；
+- `CROUCH`：停车并发布趴下指令，可按配置自动复位后进行下一轮。
 
 监视状态：
 
@@ -179,7 +177,8 @@ roslaunch go2w_sim parking3_sim.launch physics:=true
 物理模式的固定轮不会执行横移指令，因此不建议用它验证依赖 `linear.y` 的完整泊车流程。
 
 当前自动泊车默认限速为：接近 `0.38 m/s`、最终入库 `0.12 m/s`、横移
-`0.18 m/s`、转向 `0.60 rad/s`。可在
+`0.18 m/s`、转向 `0.60 rad/s`。门外预对准距离默认为 `1.50 m`，最终
+激光停车距离默认为 `0.35 m`。可在
 `src/go2w_parking/config/auto_dock.yaml` 中继续调整。
 
 轻量球棍动力学模型：

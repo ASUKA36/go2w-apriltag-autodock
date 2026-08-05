@@ -1,5 +1,7 @@
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
+#include <ctime>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -29,6 +31,11 @@ class Go2WDynamicsPlugin : public ModelPlugin {
     nh_.reset(new ros::NodeHandle);
     cmd_topic_ = sdf->Get<std::string>("commandTopic", "/cmd_vel").first;
     posture_topic_ = sdf->Get<std::string>("postureTopic", "/go2w/posture_cmd").first;
+    reset_topic_ = sdf->Get<std::string>("resetTopic", "/go2w/sim_reset").first;
+    spawn_center_x_ = sdf->Get<double>("spawnRegionCenterX", -2.0).first;
+    spawn_center_y_ = sdf->Get<double>("spawnRegionCenterY", 0.0).first;
+    spawn_region_size_ = sdf->Get<double>("spawnRegionSize", 2.0).first;
+    random_yaw_ = sdf->Get<bool>("randomYaw", true).first;
     odom_topic_ = sdf->Get<std::string>("odometryTopic", "/odom").first;
     odom_frame_ = sdf->Get<std::string>("odometryFrame", "odom").first;
     base_frame_ = sdf->Get<std::string>("robotBaseFrame", "base_footprint").first;
@@ -60,7 +67,12 @@ class Go2WDynamicsPlugin : public ModelPlugin {
     // At plugin load time fixed-joint link poses may not yet be propagated by
     // Gazebo, so derive the nominal body height from the spawned model root.
     initial_base_height_ = model_->WorldPose().Pos().Z();
-    for (const auto& link : model_->GetLinks())
+    initial_pose_ = model_->WorldPose();
+    static bool seeded = false;
+    if (!seeded) {
+      std::srand(static_cast<unsigned>(std::time(nullptr)));
+      seeded = true;
+    }    for (const auto& link : model_->GetLinks())
       if (link->GetInertial()) total_mass_ += link->GetInertial()->Mass();
     if (total_mass_ < 1.0) total_mass_ = 14.0;
     ROS_INFO("Go2-W balance target: height=%.3f m, mass=%.2f kg",
@@ -73,6 +85,7 @@ class Go2WDynamicsPlugin : public ModelPlugin {
 
     cmd_sub_ = nh_->subscribe(cmd_topic_, 1, &Go2WDynamicsPlugin::OnCommand, this);
     posture_sub_ = nh_->subscribe(posture_topic_, 1, &Go2WDynamicsPlugin::OnPosture, this);
+    reset_sub_ = nh_->subscribe(reset_topic_, 1, &Go2WDynamicsPlugin::OnReset, this);
     odom_pub_ = nh_->advertise<nav_msgs::Odometry>(odom_topic_, 5);
     last_update_ = model_->GetWorld()->SimTime();
     update_connection_ = event::Events::ConnectWorldUpdateBegin(
@@ -115,6 +128,31 @@ class Go2WDynamicsPlugin : public ModelPlugin {
       target_posture_ = 0.0;
       ROS_INFO("Dynamics posture: StandUp");
     }
+  }
+
+  void OnReset(const std_msgs::StringConstPtr& msg) {
+    if (!msg->data.empty() && msg->data != "reset") return;
+    std::lock_guard<std::mutex> guard(mutex_);
+    target_linear_ = target_angular_ = 0.0;
+    target_posture_ = 0.0;
+    posture_ = 0.0;
+    last_command_ = ros::WallTime(0);
+    const double half = 0.5 * spawn_region_size_;
+    const double rx = (2.0 * static_cast<double>(std::rand()) / RAND_MAX - 1.0) * half;
+    const double ry = (2.0 * static_cast<double>(std::rand()) / RAND_MAX - 1.0) * half;
+    double yaw = initial_pose_.Rot().Yaw();
+    if (random_yaw_)
+      yaw = (2.0 * static_cast<double>(std::rand()) / RAND_MAX - 1.0) * M_PI;
+    ignition::math::Pose3d pose = initial_pose_;
+    pose.Pos().X() = spawn_center_x_ + rx;
+    pose.Pos().Y() = spawn_center_y_ + ry;
+    pose.Pos().Z() = initial_pose_.Pos().Z();
+    pose.Rot() = ignition::math::Quaterniond(0.0, 0.0, yaw);
+    model_->SetWorldPose(pose, true, true);
+    model_->SetLinearVel(ignition::math::Vector3d::Zero);
+    model_->SetAngularVel(ignition::math::Vector3d::Zero);
+    ROS_INFO("Go2-W dynamics plugin reset to random spawn (%.2f, %.2f)",
+             pose.Pos().X(), pose.Pos().Y());
   }
 
   void OnUpdate() {
@@ -231,19 +269,23 @@ class Go2WDynamicsPlugin : public ModelPlugin {
   physics::Joint_V leg_joints_, wheel_joints_;
   event::ConnectionPtr update_connection_;
   std::unique_ptr<ros::NodeHandle> nh_;
-  ros::Subscriber cmd_sub_, posture_sub_;
+  ros::Subscriber cmd_sub_, posture_sub_, reset_sub_;
   ros::Publisher odom_pub_;
   tf::TransformBroadcaster tf_broadcaster_;
   std::mutex mutex_;
+  ignition::math::Pose3d initial_pose_;
   common::Time last_update_;
   ros::WallTime last_command_;
-  std::string cmd_topic_, posture_topic_, odom_topic_, odom_frame_, base_frame_;
+  std::string cmd_topic_, posture_topic_, reset_topic_, odom_topic_, odom_frame_, base_frame_;
   double target_linear_{0.0}, target_angular_{0.0}, target_posture_{0.0};
   double posture_{0.0}, gait_phase_{0.0}, leg_update_accumulator_{0.0};
   double wheel_radius_{0.10}, track_width_{0.285};
-  double initial_base_height_{0.08}, total_mass_{0.0};
   double max_linear_{1.0}, max_angular_{1.5}, timeout_{0.5};
-  bool publish_tf_{true}, joints_valid_{true};
+  double initial_base_height_{0.08}, total_mass_{0.0};
+  double spawn_center_x_{-2.0}, spawn_center_y_{0.0}, spawn_region_size_{2.0};
+  bool publish_tf_{true};
+  bool random_yaw_{true};
+  bool joints_valid_{true};
 };
 
 GZ_REGISTER_MODEL_PLUGIN(Go2WDynamicsPlugin)

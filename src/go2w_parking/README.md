@@ -55,8 +55,7 @@ roslaunch go2w_parking auto_dock.launch
 `auto_dock.py` 只订阅 `/tag_detections` 和 `/scan`，不读取地图、里程计或仿真真值。状态为：
 
 ```text
-SEARCH_TAG / LIDAR_GARAGE_SEEK -> PRE_ALIGN_OUTSIDE -> APPROACH -> LIDAR_CENTERED_ENTRY
-           -> FINE_ALIGN -> HOLD -> PARKED
+PREALIGN_GATE -> ENTER_BAY -> CROUCH
 ```
 
 运行时可监视：
@@ -67,16 +66,17 @@ rostopic echo /auto_dock/success
 rostopic echo /cmd_vel
 ```
 
-`PRE_ALIGN_OUTSIDE` 禁止向前进入，先用横移和原地转向把机器狗在窝外摆正。
-入口后从 Mid-360 扫描点拟合左右墙面，用墙面中心偏差修正 `linear.y`，用墙面
-方向修正 `angular.z`。这些都在 `base_link` 局部坐标中完成。
+`PREALIGN_GATE` 先按 Tag 法向和横向位置摆正，并将前方激光距离稳定在
+`1.50 ± 0.05 m`；条件持续满足 2 秒后进入 `ENTER_BAY`。入口后从 Mid-360
+扫描点拟合左右墙面，用墙面中心偏差修正 `linear.y`，用墙面方向修正
+`angular.z`。接近充电板后切换为激光终段，到达约 `0.35 m` 时进入 `CROUCH`。
 
 RViz 中的橙红色 `/auto_dock/predicted_path` 是按当前限速后的 `vx/vy/wz` 外推的
 3 秒局部预测轨迹，用于直观检查下一段运动趋势；它不是全局规划路径。
 
-当 `tag36h11 ID 0` 不可见但 Mid-360 拟合到左右狗窝墙时，控制器进入
-`LIDAR_GARAGE_SEEK`：先对齐绿色雷达中心线，再低速向入口靠近以主动重新找到
-Tag。前方距离过近时不会继续盲目前进。雷达估计状态可通过以下话题检查：
+新版流程从能够看到 `tag36h11 ID 0` 的门外预对准位置开始，不包含原地搜索 Tag
+或雷达寻库前置阶段。Tag 接近画面下方后允许转为纯雷达终段。雷达估计状态可通过
+以下话题检查：
 
 ```bash
 rostopic echo /auto_dock/lidar_garage_detected
@@ -84,8 +84,8 @@ rostopic echo /auto_dock/lidar_center_error
 rostopic echo /auto_dock/lidar_heading_error
 ```
 
-泊车目标不是 Tag 本身的位置，而是配置文件中标定的“相机到 Tag 的充电位距离”。
-仿真默认为 `0.60 m`，真机使用前必须按充电板、相机和 Tag 安装关系重新标定。
+泊车目标不是 Tag 本身的位置，而是配置文件中标定的激光最终停车距离。
+仿真默认为 `0.35 m`，真机使用前必须按充电板、相机、雷达和 Tag 安装关系重新标定。
 控制参数见 `config/auto_dock.yaml`。
 
 ## 三维泊车场景

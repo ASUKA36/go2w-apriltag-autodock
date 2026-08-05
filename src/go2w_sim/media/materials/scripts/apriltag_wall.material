@@ -5,6 +5,11 @@ material Go2WSim/AprilTagWall
     pass
     {
       lighting off
+      // Single-sided so the tag is not visible through the wall from behind.
+      cull_hardware clockwise
+      cull_software clockwise
+      depth_check on
+      depth_write on
       texture_unit
       {
         texture apriltag_wall.png

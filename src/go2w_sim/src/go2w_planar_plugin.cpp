@@ -1,5 +1,7 @@
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
+#include <ctime>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -36,7 +38,17 @@ class Go2WPlanarPlugin : public ModelPlugin {
     angular_accel_ = sdf->Get<double>("angularAcceleration", 3.0).first;
     timeout_ = sdf->Get<double>("commandTimeout", 0.5).first;
     posture_topic_ = sdf->Get<std::string>("postureTopic", "go2w/posture_cmd").first;
+    reset_topic_ = sdf->Get<std::string>("resetTopic", "/go2w/sim_reset").first;
+    spawn_center_x_ = sdf->Get<double>("spawnRegionCenterX", -2.0).first;
+    spawn_center_y_ = sdf->Get<double>("spawnRegionCenterY", 0.0).first;
+    spawn_region_size_ = sdf->Get<double>("spawnRegionSize", 2.0).first;
+    random_yaw_ = sdf->Get<bool>("randomYaw", true).first;
     publish_tf_ = sdf->Get<bool>("publishTf", true).first;
+    static bool seeded = false;
+    if (!seeded) {
+      std::srand(static_cast<unsigned>(std::time(nullptr)));
+      seeded = true;
+    }
 
     const std::vector<std::string> leg_names = {
         "FL_hip_joint", "FL_thigh_joint", "FL_calf_joint",
@@ -64,13 +76,14 @@ class Go2WPlanarPlugin : public ModelPlugin {
     pose_ = initial_pose_;
     cmd_sub_ = nh_->subscribe(cmd_topic_, 1, &Go2WPlanarPlugin::OnCommand, this);
     posture_sub_ = nh_->subscribe(posture_topic_, 1, &Go2WPlanarPlugin::OnPosture, this);
+    reset_sub_ = nh_->subscribe(reset_topic_, 1, &Go2WPlanarPlugin::OnReset, this);
     odom_pub_ = nh_->advertise<nav_msgs::Odometry>(odom_topic_, 5);
     last_update_ = model_->GetWorld()->SimTime();
     last_command_ = ros::Time(0);
     update_connection_ = event::Events::ConnectWorldUpdateBegin(
         std::bind(&Go2WPlanarPlugin::OnUpdate, this));
-    ROS_INFO("Go2-W planar plugin ready: %s, %s -> %s", cmd_topic_.c_str(),
-             posture_topic_.c_str(), odom_topic_.c_str());
+    ROS_INFO("Go2-W planar plugin ready: %s, %s, reset=%s -> %s", cmd_topic_.c_str(),
+             posture_topic_.c_str(), reset_topic_.c_str(), odom_topic_.c_str());
   }
 
  private:
@@ -101,6 +114,36 @@ class Go2WPlanarPlugin : public ModelPlugin {
     } else {
       ROS_WARN_THROTTLE(2.0, "Unknown posture command: %s", msg->data.c_str());
     }
+  }
+
+  void OnReset(const std_msgs::StringConstPtr& msg) {
+    if (!msg->data.empty() && msg->data != "reset") return;
+    std::lock_guard<std::mutex> guard(mutex_);
+    SampleSpawnPoseLocked();
+    target_linear_ = target_lateral_ = target_angular_ = 0.0;
+    linear_ = lateral_ = angular_ = 0.0;
+    target_prone_ = 0.0;
+    posture_ = 0.0;
+    last_command_ = ros::Time(0);
+    model_->SetWorldPose(pose_, true, false);
+    model_->SetLinearVel(ignition::math::Vector3d::Zero);
+    model_->SetAngularVel(ignition::math::Vector3d::Zero);
+    ROS_INFO("Go2-W planar plugin reset to random spawn (%.2f, %.2f, yaw=%.2f)",
+             pose_.Pos().X(), pose_.Pos().Y(), pose_.Rot().Yaw());
+  }
+
+  void SampleSpawnPoseLocked() {
+    const double half = 0.5 * spawn_region_size_;
+    const double rx = (2.0 * static_cast<double>(std::rand()) / RAND_MAX - 1.0) * half;
+    const double ry = (2.0 * static_cast<double>(std::rand()) / RAND_MAX - 1.0) * half;
+    double yaw = initial_pose_.Rot().Yaw();
+    if (random_yaw_)
+      yaw = (2.0 * static_cast<double>(std::rand()) / RAND_MAX - 1.0) * M_PI;
+    pose_ = initial_pose_;
+    pose_.Pos().X() = spawn_center_x_ + rx;
+    pose_.Pos().Y() = spawn_center_y_ + ry;
+    pose_.Pos().Z() = initial_pose_.Pos().Z();
+    pose_.Rot() = ignition::math::Quaterniond(0.0, 0.0, yaw);
   }
 
   void OnUpdate() {
@@ -175,20 +218,22 @@ class Go2WPlanarPlugin : public ModelPlugin {
   physics::Joint_V leg_joints_, wheel_joints_;
   event::ConnectionPtr update_connection_;
   std::unique_ptr<ros::NodeHandle> nh_;
-  ros::Subscriber cmd_sub_, posture_sub_;
+  ros::Subscriber cmd_sub_, posture_sub_, reset_sub_;
   ros::Publisher odom_pub_;
   tf::TransformBroadcaster tf_broadcaster_;
   std::mutex mutex_;
   ignition::math::Pose3d initial_pose_, pose_;
   common::Time last_update_;
   ros::Time last_command_;
-  std::string cmd_topic_, posture_topic_, odom_topic_, odom_frame_, base_frame_;
+  std::string cmd_topic_, posture_topic_, reset_topic_, odom_topic_, odom_frame_, base_frame_;
   double target_linear_{0.0}, target_lateral_{0.0}, target_angular_{0.0};
   double linear_{0.0}, lateral_{0.0}, angular_{0.0};
   double target_prone_{0.0}, posture_{0.0};
   double max_linear_{1.2}, max_angular_{1.8}, accel_{1.8}, angular_accel_{3.0}, timeout_{0.5};
+  double spawn_center_x_{-2.0}, spawn_center_y_{0.0}, spawn_region_size_{2.0};
   double wheel_angle_[4]{0.0, 0.0, 0.0, 0.0};
   bool publish_tf_{true};
+  bool random_yaw_{true};
 };
 
 GZ_REGISTER_MODEL_PLUGIN(Go2WPlanarPlugin)

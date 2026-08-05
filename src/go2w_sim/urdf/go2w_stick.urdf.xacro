@@ -222,6 +222,11 @@
     <plugin name="go2w_planar" filename="libgo2w_planar_plugin.so">
       <commandTopic>/cmd_vel</commandTopic><odometryTopic>/odom</odometryTopic>
       <postureTopic>/go2w/posture_cmd</postureTopic>
+      <resetTopic>/go2w/sim_reset</resetTopic>
+      <spawnRegionCenterX>-2.0</spawnRegionCenterX>
+      <spawnRegionCenterY>0.0</spawnRegionCenterY>
+      <spawnRegionSize>2.0</spawnRegionSize>
+      <randomYaw>true</randomYaw>
       <odometryFrame>odom</odometryFrame><robotBaseFrame>base_footprint</robotBaseFrame>
       <maxLinear>1.2</maxLinear><maxAngular>1.8</maxAngular>
       <acceleration>1.8</acceleration><angularAcceleration>3.0</angularAcceleration>
@@ -234,6 +239,11 @@
     <gazebo>
      <plugin name="go2w_dynamics" filename="libgo2w_dynamics_plugin.so">
        <commandTopic>/cmd_vel</commandTopic><postureTopic>/go2w/posture_cmd</postureTopic>
+       <resetTopic>/go2w/sim_reset</resetTopic>
+       <spawnRegionCenterX>-2.0</spawnRegionCenterX>
+       <spawnRegionCenterY>0.0</spawnRegionCenterY>
+       <spawnRegionSize>2.0</spawnRegionSize>
+       <randomYaw>true</randomYaw>
        <odometryTopic>/odom</odometryTopic><odometryFrame>odom</odometryFrame>
        <robotBaseFrame>base_footprint</robotBaseFrame><publishTf>true</publishTf>
        <wheelRadius>0.10</wheelRadius><trackWidth>0.285</trackWidth>

@@ -22,24 +22,24 @@
 
     <model name="ground"><static>true</static>
       <link name="link">
-        <collision name="collision"><geometry><box><size>7 5 0.08</size></box></geometry></collision>
-        <visual name="visual"><geometry><box><size>7 5 0.08</size></box></geometry>
+        <collision name="collision"><geometry><box><size>12 6 0.08</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>12 6 0.08</size></box></geometry>
           <material><ambient>0.50 0.52 0.55 1</ambient><diffuse>0.62 0.64 0.67 1</diffuse></material>
         </visual>
       </link>
     </model>
 
-    <!-- U-shaped kennel. Opening faces -X; all walls have real collisions, so
-         Gazebo camera and lidar rays are occluded by exactly the same geometry. -->
-    <model name="kennel_back"><static>true</static><pose>0.95 0 0.38 0 0 0</pose>
+    <!-- U-shaped kennel, wall height 1.2 m. Opening faces -X.
+         Tag face at x=1.25; pad center 0.55 m in front of Tag. -->
+    <model name="kennel_back"><static>true</static><pose>1.29 0 0.60 0 0 0</pose>
       <link name="link">
-        <collision name="collision"><geometry><box><size>0.08 0.92 0.76</size></box></geometry></collision>
-        <visual name="visual"><geometry><box><size>0.08 0.92 0.76</size></box></geometry>
+        <collision name="collision"><geometry><box><size>0.08 1.08 1.20</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>0.08 1.08 1.20</size></box></geometry>
           <material><ambient>0.16 0.32 0.62 1</ambient><diffuse>0.20 0.40 0.76 1</diffuse></material>
         </visual>
-        <!-- tag36h11 ID 0, 0.16 m black-border size, mounted on west face. -->
-        <visual name="apriltag_36h11_0"><pose>-0.041 0 0.08 0 -1.570796 0</pose>
-          <geometry><plane><normal>0 0 1</normal><size>0.204 0.204</size></plane></geometry>
+        <!-- tag36h11 ID 0, 0.11 m black square, center 0.30 m above ground. -->
+        <visual name="apriltag_36h11_0"><pose>-0.041 0 -0.30 0 -1.570796 0</pose>
+          <geometry><plane><normal>0 0 1</normal><size>0.11 0.11</size></plane></geometry>
           <material><script>
             <uri>file://media/materials/scripts</uri>
             <uri>file://media/materials/textures</uri>
@@ -48,24 +48,24 @@
         </visual>
       </link>
     </model>
-    <model name="kennel_left"><static>true</static><pose>0.46 0.50 0.32 0 0 0</pose>
+    <model name="kennel_left"><static>true</static><pose>0.625 0.50 0.60 0 0 0</pose>
       <link name="link">
-        <collision name="collision"><geometry><box><size>1.06 0.08 0.64</size></box></geometry></collision>
-        <visual name="visual"><geometry><box><size>1.06 0.08 0.64</size></box></geometry>
+        <collision name="collision"><geometry><box><size>1.25 0.08 1.20</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>1.25 0.08 1.20</size></box></geometry>
           <material><ambient>0.16 0.32 0.62 1</ambient><diffuse>0.20 0.40 0.76 1</diffuse></material>
         </visual>
       </link>
     </model>
-    <model name="kennel_right"><static>true</static><pose>0.46 -0.50 0.32 0 0 0</pose>
+    <model name="kennel_right"><static>true</static><pose>0.625 -0.50 0.60 0 0 0</pose>
       <link name="link">
-        <collision name="collision"><geometry><box><size>1.06 0.08 0.64</size></box></geometry></collision>
-        <visual name="visual"><geometry><box><size>1.06 0.08 0.64</size></box></geometry>
+        <collision name="collision"><geometry><box><size>1.25 0.08 1.20</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>1.25 0.08 1.20</size></box></geometry>
           <material><ambient>0.16 0.32 0.62 1</ambient><diffuse>0.20 0.40 0.76 1</diffuse></material>
         </visual>
       </link>
     </model>
 
-    <model name="charger"><static>true</static><pose>0.84 0 0.10 0 0 0</pose>
+    <model name="charger"><static>true</static><pose>1.18 0 0.10 0 0 0</pose>
       <link name="link">
         <collision name="collision"><geometry><box><size>0.12 0.38 0.20</size></box></geometry></collision>
         <visual name="visual"><geometry><box><size>0.12 0.38 0.20</size></box></geometry>
@@ -74,13 +74,51 @@
       </link>
     </model>
 
+    <!-- Charging pad 1.2 x 0.7 m; center 0.55 m in front of Tag (x=1.25). -->
+    <model name="charging_pad"><static>true</static><pose>0.70 0 0.025 0 0 0</pose>
+      <link name="link">
+        <collision name="frame"><geometry><box><size>1.20 0.70 0.03</size></box></geometry></collision>
+        <visual name="frame"><geometry><box><size>1.20 0.70 0.03</size></box></geometry>
+          <material><ambient>0.06 0.06 0.07 1</ambient><diffuse>0.10 0.10 0.11 1</diffuse></material>
+        </visual>
+        <visual name="contact_left"><pose>-0.12 0.16 0.018 0 0 0</pose>
+          <geometry><box><size>0.55 0.26 0.01</size></box></geometry>
+          <material><ambient>0.70 0.72 0.74 1</ambient><diffuse>0.82 0.84 0.86 1</diffuse></material>
+        </visual>
+        <visual name="contact_right"><pose>-0.12 -0.16 0.018 0 0 0</pose>
+          <geometry><box><size>0.55 0.26 0.01</size></box></geometry>
+          <material><ambient>0.70 0.72 0.74 1</ambient><diffuse>0.82 0.84 0.86 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name="charging_bridge"><static>true</static><pose>1.215 0 0.02 0 0 0</pose>
+      <link name="link">
+        <visual name="rails"><geometry><box><size>0.06 0.40 0.02</size></box></geometry>
+          <material><ambient>0.08 0.08 0.09 1</ambient><diffuse>0.12 0.12 0.13 1</diffuse></material>
+        </visual>
+        <visual name="gap_mark"><pose>0 0 0.012 0 0 0</pose>
+          <geometry><box><size>0.04 0.12 0.005</size></box></geometry>
+          <material><ambient>0.45 0.46 0.48 1</ambient></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Spawn region marker (visual only): 2 m square centered 2 m in front of kennel. -->
+    <model name="spawn_region"><static>true</static><pose>-2.0 0 0.01 0 0 0</pose>
+      <link name="link">
+        <visual name="visual"><geometry><box><size>2.0 2.0 0.01</size></box></geometry>
+          <material><ambient>0.95 0.80 0.20 0.35</ambient><diffuse>1.0 0.85 0.25 0.35</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
     <!-- A freestanding occluder can be moved in Gazebo to verify that both the
          camera and AprilTag detector lose the target behind solid geometry. -->
-    <model name="movable_occlusion_wall"><static>false</static><pose>-0.65 1.35 0.42 0 0 0</pose>
+    <model name="movable_occlusion_wall"><static>false</static><pose>-0.65 1.35 0.60 0 0 0</pose>
       <link name="link">
         <inertial><mass>18</mass><inertia><ixx>2.0</ixx><iyy>0.6</iyy><izz>2.2</izz></inertia></inertial>
-        <collision name="collision"><geometry><box><size>0.10 1.05 0.84</size></box></geometry></collision>
-        <visual name="visual"><geometry><box><size>0.10 1.05 0.84</size></box></geometry>
+        <collision name="collision"><geometry><box><size>0.10 1.05 1.20</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>0.10 1.05 1.20</size></box></geometry>
           <material><ambient>0.65 0.34 0.18 1</ambient><diffuse>0.78 0.42 0.22 1</diffuse></material>
         </visual>
       </link>
