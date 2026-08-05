@@ -89,7 +89,6 @@ class AutoDock:
         self.lidar_only = False
         self.completed = False
         self.reset_pending = False
-        self.enabled = rospy.get_param("~start_enabled", True)
 
         self.cmd_pub = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
         self.state_pub = rospy.Publisher("/auto_dock/state", String, queue_size=1, latch=True)
@@ -113,15 +112,14 @@ class AutoDock:
         )
         rospy.Subscriber("/tag_detections", AprilTagDetectionArray, self.tag_callback, queue_size=1)
         rospy.Subscriber("/scan", LaserScan, self.scan_callback, queue_size=1)
-        rospy.Subscriber("/control_mode", String, self.mode_callback, queue_size=1)
         self.timer = rospy.Timer(rospy.Duration(1.0 / self.control_rate), self.control)
         rospy.on_shutdown(self.stop)
         self.set_state(self.WAIT_TAG)
         self.success_pub.publish(False)
         self.lidar_lock_pub.publish(False)
         rospy.loginfo(
-            "Mapless auto dock ready: tag=%d, gate=%.2fm, final=%.2fm, enabled=%s",
-            self.target_id, self.gate_front_distance, self.target_distance, self.enabled,
+            "Mapless auto dock ready: tag=%d, gate=%.2fm, final=%.2fm",
+            self.target_id, self.gate_front_distance, self.target_distance,
         )
 
     def reset_cycle_flags(self):
@@ -172,23 +170,6 @@ class AutoDock:
     def scan_callback(self, message):
         with self.lock:
             self.scan = message
-
-    def mode_callback(self, message):
-        mode = message.data.strip().lower()
-        enable = mode == "auto"
-        with self.lock:
-            was_enabled = self.enabled
-            self.enabled = enable
-            if enable and not was_enabled:
-                self.reset_cycle_flags()
-                self.state = self.WAIT_TAG
-        if enable and not was_enabled:
-            self.set_state(self.WAIT_TAG)
-            self.success_pub.publish(False)
-            rospy.loginfo("Auto dock enabled by /control_mode")
-        elif (not enable) and was_enabled:
-            self.stop()
-            rospy.loginfo("Auto dock paused; manual teleop owns /cmd_vel")
 
     def sector_min(self, center, half_width):
         scan = self.scan
@@ -396,14 +377,11 @@ class AutoDock:
             last_seen = self.last_seen
             x, y, z, facing = self.tag_x, self.tag_y, self.tag_z, self.facing
             completed = self.completed
-            enabled = self.enabled
             gate_done = self.gate_done
             lidar_only = self.lidar_only
         corridor = self.corridor_geometry()
         self.publish_lidar_estimate(corridor)
         front = self.sector_min(0.0, self.front_half_angle)
-        if not enabled:
-            return
         if completed:
             self.stop()
             return

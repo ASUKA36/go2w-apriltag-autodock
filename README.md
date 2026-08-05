@@ -59,6 +59,8 @@ source devel/setup.bash
 
 `parking2_sim` 和 `parking3_sim` 只负责环境与传感器，停车算法始终通过
 `roslaunch go2w_parking auto_dock.launch` 在另一个终端独立启动。
+停车算法不依赖 `/control_mode`，启动后自动接管 `/cmd_vel`。默认出生位姿正对
+Tag；如果手动启用随机出生且相机看不到 Tag，算法会停在 `WAIT_TAG`。
 
 ## 1. 二维自动泊狗仿真
 

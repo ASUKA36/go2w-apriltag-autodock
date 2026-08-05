@@ -11,12 +11,13 @@ accel_lateral: 0.70
 accel_angular: 2.00
 command_timeout: 0.40
 
-# Spawn region: 2 m square centered 2 m in front of the kennel opening (x=0).
-# Each reset samples a uniform pose inside the square with a random yaw.
+# Default spawn is centered 2 m in front of the kennel and faces the Tag.
+# The controller intentionally has no search stage, so random yaw would often
+# start in WAIT_TAG forever. Set spawn_yaw_random=true for manual robustness tests.
 spawn_region_center_x: -2.0
 spawn_region_center_y: 0.0
-spawn_region_size: 2.0
-spawn_yaw_random: true
+spawn_region_size: 0.0
+spawn_yaw_random: false
 # Fallback fixed pose (only used when spawn_yaw_random is false).
 initial_x: -2.0
 initial_y: 0.0

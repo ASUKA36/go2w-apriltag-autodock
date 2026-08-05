@@ -78,6 +78,10 @@ RViz 中的橙红色 `/auto_dock/predicted_path` 是按当前限速后的 `vx/vy
 或雷达寻库前置阶段。Tag 接近画面下方后允许转为纯雷达终段。雷达估计状态可通过
 以下话题检查：
 
+二维场景默认固定出生在 Tag 正前方，确保独立启动算法后能够直接运行。若将
+`parking.yaml` 的 `spawn_yaw_random` 改为 `true`，随机朝向看不到 Tag 时会保持
+`WAIT_TAG` 和零速度，这是无搜索阶段的预期行为。
+
 ```bash
 rostopic echo /auto_dock/lidar_garage_detected
 rostopic echo /auto_dock/lidar_center_error
