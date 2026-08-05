@@ -1,0 +1,11 @@
+<launch>
+  <arg name="rviz" default="true"/>
+  <arg name="config" default="$(find go2w_parking)/config/parking.yaml"/>
+
+  <param name="use_sim_time" value="false"/>
+  <node pkg="go2w_parking" type="parking_sim.py" name="parking_sim" output="screen">
+    <rosparam command="load" file="$(arg config)"/>
+  </node>
+  <node if="$(arg rviz)" pkg="rviz" type="rviz" name="parking_rviz"
+        args="-d $(find go2w_parking)/config/parking.rviz"/>
+</launch>

@@ -1,0 +1,76 @@
+Panels:
+  - Class: rviz/Displays
+    Name: Displays
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz/Grid
+      Name: Grid
+      Cell Size: 0.5
+      Plane Cell Count: 20
+      Enabled: true
+    - Class: rviz/Map
+      Name: Kennel Occupancy Map
+      Topic: /parking/map
+      Color Scheme: map
+      Enabled: true
+    - Class: rviz/MarkerArray
+      Name: Dog and Kennel
+      Marker Topic: /parking/markers
+      Enabled: true
+    - Class: rviz/MarkerArray
+      Name: Mid360 Garage Estimate
+      Marker Topic: /auto_dock/lidar_markers
+      Enabled: true
+    - Class: rviz/LaserScan
+      Name: Parking Scan
+      Topic: /scan
+      Style: Points
+      Size (Pixels): 3
+      Decay Time: 0.1
+      Enabled: true
+    - Class: rviz/Image
+      Name: Simulated D435i
+      Image Topic: /camera/color/image_raw
+      Transport Hint: raw
+      Normalize Range: true
+      Enabled: true
+    - Class: rviz/Path
+      Name: Dog Path
+      Topic: /parking/path
+      Color: 30; 170; 255
+      Enabled: true
+    - Class: rviz/Path
+      Name: Predicted Docking Trajectory
+      Topic: /auto_dock/predicted_path
+      Color: 255; 80; 20
+      Line Style: Lines
+      Line Width: 0.035
+      Enabled: true
+    - Class: rviz/Pose
+      Name: Parking Goal
+      Topic: /parking/goal
+      Shape: Arrow
+      Color: 255; 170; 0
+      Enabled: true
+  Global Options:
+    Background Color: 245; 245; 245
+    Fixed Frame: map
+    Frame Rate: 30
+  Tools:
+    - Class: rviz/Interact
+    - Class: rviz/MoveCamera
+    - Class: rviz/SetInitialPose
+      Topic: /initialpose
+  Views:
+    Current:
+      Class: rviz/TopDownOrtho
+      Angle: 0
+      Scale: 85
+      Target Frame: map
+      X: -0.2
+      Y: 0
+  Name: root
+Window Geometry:
+  Height: 760
+  Width: 1100

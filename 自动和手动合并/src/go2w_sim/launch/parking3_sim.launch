@@ -1,0 +1,35 @@
+<launch>
+  <!-- 3-D environment and sensors only. Start auto_dock.launch separately. -->
+  <arg name="gui" default="true"/>
+  <arg name="rviz" default="true"/>
+  <arg name="paused" default="false"/>
+  <arg name="physics" default="false"/>
+  <arg name="spawn_z" default="$(eval 0.08 if arg('physics') == 'true' else 0.0)"/>
+  <arg name="start_tag_detector" default="true"/>
+  <arg name="show_detection" default="false"/>
+
+  <include file="$(find go2w_sim)/launch/simple_sim.launch">
+    <arg name="gui" value="$(arg gui)"/>
+    <arg name="rviz" value="$(arg rviz)"/>
+    <arg name="camera" value="true"/>
+    <arg name="control" value="true"/>
+    <arg name="physics" value="$(arg physics)"/>
+    <arg name="official_visual" value="true"/>
+    <arg name="paused" value="$(arg paused)"/>
+    <arg name="world" value="$(find go2w_sim)/worlds/parking_3d.world"/>
+    <arg name="publish_map" value="false"/>
+    <arg name="model_name" value="go2w_parking"/>
+    <arg name="spawn_x" value="-2.0"/>
+    <arg name="spawn_y" value="0.0"/>
+    <arg name="spawn_z" value="$(arg spawn_z)"/>
+    <arg name="spawn_yaw" value="0.0"/>
+  </include>
+
+  <include if="$(arg start_tag_detector)" file="$(find go2w_vision)/launch/detect_tag.launch">
+    <arg name="start_realsense" value="false"/>
+    <arg name="target_id" value="0"/>
+    <arg name="tag_size" value="0.11"/>
+    <arg name="show_detection" value="$(arg show_detection)"/>
+    <arg name="detector_start_delay" value="12.0"/>
+  </include>
+</launch>

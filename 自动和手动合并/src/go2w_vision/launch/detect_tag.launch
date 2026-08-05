@@ -1,0 +1,46 @@
+<launch>
+  <arg name="start_realsense" default="true"/>
+  <arg name="target_id" default="0"/>
+  <arg name="tag_size" default="0.080"/>
+  <arg name="image_topic" default="/camera/color/image_raw"/>
+  <arg name="camera_info_topic" default="/camera/color/camera_info"/>
+  <!-- AprilTag only needs the color stream. Keep bandwidth-heavy streams off
+       by default so D435i works reliably through WSL/usbipd. -->
+  <arg name="enable_depth" default="false"/>
+  <arg name="enable_imu" default="false"/>
+  <arg name="align_depth" default="false"/>
+  <arg name="show_detection" default="true"/>
+  <!-- Gazebo may advertise its image topic before the first valid frame.
+       Keep zero for real D435i; 3-D simulation supplies a short delay. -->
+  <arg name="detector_start_delay" default="0.0"/>
+
+  <include if="$(arg start_realsense)" file="$(find realsense2_camera)/launch/rs_camera.launch">
+    <arg name="enable_color" value="true"/>
+    <arg name="enable_depth" value="$(arg enable_depth)"/>
+    <arg name="enable_infra1" value="false"/>
+    <arg name="enable_infra2" value="false"/>
+    <arg name="enable_gyro" value="$(arg enable_imu)"/>
+    <arg name="enable_accel" value="$(arg enable_imu)"/>
+    <arg name="align_depth" value="$(arg align_depth)"/>
+  </include>
+
+  <node pkg="apriltag_ros" type="apriltag_ros_continuous_node"
+        name="apriltag_detector" output="screen"
+        launch-prefix="bash -c 'sleep $(arg detector_start_delay); exec &quot;$@&quot;' --">
+    <remap from="image_rect" to="$(arg image_topic)"/>
+    <remap from="camera_info" to="$(arg camera_info_topic)"/>
+    <rosparam command="load" file="$(find go2w_vision)/config/settings.yaml"/>
+    <rosparam param="standalone_tags" subst_value="true">
+      - {id: $(arg target_id), size: $(arg tag_size), name: tag36h11_0}
+    </rosparam>
+    <param name="publish_tag_detections_image" type="bool" value="true"/>
+  </node>
+
+  <!-- apriltag_ros publishes the annotated image on /tag_detections_image. -->
+  <node if="$(arg show_detection)" pkg="image_view" type="image_view"
+        name="tag_detection_view" output="screen">
+    <!-- Never let image_transport select compressedDepth for this RGB8 topic. -->
+    <param name="image_transport" value="raw"/>
+    <remap from="image" to="/tag_detections_image"/>
+  </node>
+</launch>
