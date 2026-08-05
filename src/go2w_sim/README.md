@@ -46,6 +46,7 @@ roslaunch go2w_parking auto_dock.launch
 ```
 
 `parking3_sim.launch` 默认使用稳定的运动学平面插件，支持前后、横移和原地转向。
+模型链接在该模式下不参与独立物理解算，静止时不会自行抖动或漂移。
 如需观察固定轮接触动力学，可增加 `physics:=true`；该模式不会执行横移指令。
 
 键盘控制节点仍可直接运行：
