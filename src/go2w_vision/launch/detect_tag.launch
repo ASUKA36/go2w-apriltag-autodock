@@ -27,7 +27,7 @@
     <remap from="camera_info" to="$(arg camera_info_topic)"/>
     <rosparam command="load" file="$(find go2w_vision)/config/settings.yaml"/>
     <rosparam param="standalone_tags" subst_value="true">
-      - {id: $(arg target_id), size: $(arg tag_size), name: target_tag}
+      - {id: $(arg target_id), size: $(arg tag_size), name: tag36h11_0}
     </rosparam>
     <param name="publish_tag_detections_image" type="bool" value="true"/>
   </node>

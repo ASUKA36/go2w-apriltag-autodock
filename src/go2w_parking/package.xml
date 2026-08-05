@@ -2,7 +2,7 @@
 <package format="2">
   <name>go2w_parking</name>
   <version>0.1.0</version>
-  <description>Lightweight 2-D holonomic Go2-W parking simulator.</description>
+  <description>Mapless Mid-360 and tag36h11 Go2-W auto-docking simulation and controller.</description>
   <maintainer email="alaurb@foxmail.com">Alaurb</maintainer>
   <license>Apache-2.0</license>
 
@@ -16,4 +16,5 @@
   <depend>std_srvs</depend>
   <depend>tf</depend>
   <depend>visualization_msgs</depend>
+  <exec_depend>go2w_vision</exec_depend>
 </package>

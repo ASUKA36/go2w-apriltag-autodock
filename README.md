@@ -1,57 +1,41 @@
-# go2w_ws
+# Go2-W 仿真与无地图自动泊狗
 
-面向 ROS1 Noetic 的 Go2-W 导航与视觉算法工作空间，针对 Ubuntu 20.04/WSL2 优化。
-模型结构和网格来自
-[宇树官方 `unitreerobotics/unitree_ros`](https://github.com/unitreerobotics/unitree_ros/tree/master/robots/go2w_description)，
-使用基础几何体实现轻量 Gazebo 3D 模型。
+面向 ROS1 Noetic、Ubuntu 20.04 和 WSL2 的轻量工作空间，集中保留两项主要功能：
 
-## 目录结构
+1. Go2-W 三维 Gazebo 仿真；
+2. 基于 Mid-360 与 D435i/`tag36h11_0` 的无地图自动泊狗。
+
+Go2-W 外观网格来自[宇树官方 unitree_ros](https://github.com/unitreerobotics/unitree_ros/tree/master/robots/go2w_description)。
+
+## 目录
 
 ```text
 go2w_ws/
 ├── src/
-│   ├── go2w_sim/         # Gazebo、Go2-W、RGB-D、激光和仿真地图
-│   ├── go2w_navigation/  # move_base 参数与导航验证
-│   ├── go2w_vision/      # D435i/Gazebo 相机 AprilTag 检测与跟随
-│   └── go2w_parking/     # 全向矩形机器狗二维停车/入窝仿真
+│   ├── go2w_sim/      # Go2-W三维模型、Gazebo环境、传感器和键盘控制
+│   ├── go2w_parking/  # 二维停车仿真、预测轨迹和自动泊狗控制器
+│   └── go2w_vision/   # 真机D435i的tag36h11_0检测
 ├── LICENSE
 └── NOTICE
 ```
 
-四个包按标准 ROS 接口解耦：
+核心接口：
 
 ```text
-go2w_sim ── /map /scan /odom /tf /camera/* ──► navigation / vision
-go2w_navigation ── /cmd_vel ──► go2w_sim 或真实机器狗
-go2w_vision ── /tag_detections，跟随模式下输出 /cmd_vel
+Mid-360 /scan ───────────────┐
+                             ├─> go2w_parking/auto_dock ─> /cmd_vel
+D435i /tag_detections ───────┘
 ```
 
-独立的二维停车场景：
+自动泊狗控制器不订阅全局地图和里程计，只使用当前激光扫描与 Tag 相对位姿。
 
-```bash
-roslaunch go2w_parking parking_sim.launch
-```
-
-不使用地图的自动泊狗分两个终端启动：
-
-```bash
-# 终端 1：仿真环境、Mid-360 扫描、D435i 画面和 RViz
-roslaunch go2w_parking parking_sim.launch
-
-# 终端 2：停车控制器
-roslaunch go2w_parking auto_dock.launch
-```
-
-方块机器狗支持 `linear.x` 前后、`linear.y` 横移和 `angular.z` 原地转向，
-并发布 `/parking/map`、`/scan`、`/odom`、`/parking/goal` 与 `/parking/parked`。
-
-## 安装与编译
+## 安装
 
 ```bash
 sudo apt update
 sudo apt install ros-noetic-gazebo-ros-pkgs ros-noetic-gazebo-plugins \
   ros-noetic-robot-state-publisher ros-noetic-xacro ros-noetic-rviz \
-  ros-noetic-move-base ros-noetic-apriltag-ros ros-noetic-realsense2-camera
+  ros-noetic-apriltag-ros ros-noetic-realsense2-camera ros-noetic-image-view
 
 cd ~
 git clone https://gitee.com/alaurb/go2w_nav_sim.git go2w_ws
@@ -60,78 +44,123 @@ catkin_make
 source devel/setup.bash
 ```
 
-## 分终端启动
+## 1. 二维自动泊狗仿真
 
-终端 1，仅启动仿真环境：
-
-```bash
-source ~/go2w_ws/devel/setup.bash
-roslaunch go2w_sim sim.launch
-```
-
-需要球棍轮腿动力学和对角相位腿轨迹时，可改用：
-
-```bash
-roslaunch go2w_sim physics_sim.launch
-```
-
-需要对比官方 Go2-W 网格外观时，启动独立版本：
-
-```bash
-roslaunch go2w_sim unitree_sim.launch
-```
-
-两个动力学启动入口使用相同的关节、简化碰撞体、控制插件和 `/cmd_vel` 接口；
-`unitree_sim.launch` 只把渲染外观换成宇树官方模型网格。若要打开 RViz，添加
-`rviz:=true`。
-
-终端 2，仅启动导航：
+终端 1，只启动仿真、模拟 Mid-360、模拟 D435i 和 RViz：
 
 ```bash
 source ~/go2w_ws/devel/setup.bash
-roslaunch go2w_navigation navigation.launch
+roslaunch go2w_parking parking_sim.launch
 ```
 
-终端 3，使用 Gazebo 相机启动 AprilTag 检测：
+RViz 显示：
+
+- 狗窝、充电桩和矩形机器狗；
+- `/scan` 激光点；
+- `/camera/color/image_raw` 相机画面；
+- 绿色 Mid-360 狗窝中心线；
+- 橙色 `/auto_dock/predicted_path` 三秒预测轨迹。
+
+终端 2，只启动停车控制器：
 
 ```bash
 source ~/go2w_ws/devel/setup.bash
-roslaunch go2w_vision detect_tag.launch start_realsense:=false tag_size:=0.16
+roslaunch go2w_parking auto_dock.launch
 ```
 
-仿真专用的自动接近与趴下流程：
+状态流程：
+
+```text
+SEARCH_TAG / LIDAR_GARAGE_SEEK
+  -> PRE_ALIGN_OUTSIDE
+  -> APPROACH
+  -> LIDAR_CENTERED_ENTRY
+  -> FINE_ALIGN
+  -> HOLD
+  -> PARKED
+```
+
+监视状态：
 
 ```bash
-roslaunch go2w_vision follow_tag_sim.launch
+rostopic echo /auto_dock/state
+rostopic echo /auto_dock/success
+rostopic echo /auto_dock/lidar_garage_detected
+rostopic echo /cmd_vel
 ```
 
-键盘遥控需要在独立终端中直接运行（W/S 前后、A/D 横移、Q/E 转向、Z 趴下、X 站立）：
+重置二维场景：
+
+```bash
+rosservice call /parking/reset
+```
+
+手动测试时不要启动 `auto_dock.launch`，单独运行：
 
 ```bash
 rosrun go2w_sim teleop_keyboard.py
 ```
 
-真实 D435i 检测时使用：
+W/S 前后、A/D 横移、Q/E 原地转向，松开按键停止。
+
+## 2. 真机自动泊狗
+
+先启动 Mid-360 驱动并确认存在 `/scan`，然后运行：
 
 ```bash
-roslaunch go2w_vision follow_tag.launch
+source ~/go2w_ws/devel/setup.bash
+roslaunch go2w_parking auto_dock_real.launch
 ```
 
-真实相机默认仅启动彩色流，不启动深度、深度对齐和 IMU，以避免 D435i
-在 WSL USB 转发下出现 `Depth stream start failure`。
+该入口会启动：
 
-## 自动验证
+- D435i 彩色流；
+- `tag36h11` ID 0 检测；
+- 检测框窗口；
+- 自动泊狗控制器。
+
+D435i 默认关闭深度、红外和 IMU，以减少 WSL USB 转发错误。真机使用前必须标定：
+
+- D435i、Mid-360 到 `base_link` 的外参；
+- Tag 实际黑色边框尺寸；
+- 充电位相机到 Tag 的目标距离；
+- `/cmd_vel` 到宇树 SDK2 `Move(vx, vy, vyaw)` 的适配关系。
+
+主要参数：
+
+- `src/go2w_parking/config/auto_dock.yaml`
+- `src/go2w_vision/launch/detect_tag.launch`
+
+充电完成最终应由 BMS/充电电流确认；当前版本以位姿稳定保持后发布
+`/auto_dock/success=true` 作为仿真成功条件。
+
+## 3. Go2-W 三维仿真
+
+轻量球棍动力学模型：
 
 ```bash
-roslaunch go2w_sim verify.launch
-roslaunch go2w_sim vision_verify.launch
-roslaunch go2w_navigation navigation_verify.launch
+roslaunch go2w_sim physics_sim.launch
 ```
 
-验证 launch 中测试节点完成后会主动关闭所有节点；出现 `process has finished cleanly`
-和 `PASS` 表示成功。
+宇树官方网格外观版本：
+
+```bash
+roslaunch go2w_sim unitree_sim.launch
+```
+
+需要 RViz 时添加：
+
+```bash
+roslaunch go2w_sim unitree_sim.launch rviz:=true
+```
+
+快速平面仿真仍可使用：
+
+```bash
+roslaunch go2w_sim sim.launch
+```
 
 ## 许可证
 
-工作空间自有代码采用 Apache-2.0；宇树官方 Go2-W 网格按其 BSD-3-Clause
-许可证分发。模型来源和修改说明见 `NOTICE`。
+工作空间自有代码采用 Apache-2.0。宇树官方 Go2-W 网格按 BSD-3-Clause
+许可证分发，来源和修改说明见 `NOTICE`。

@@ -1,0 +1,18 @@
+<launch>
+  <!-- Real D435i + externally launched Mid-360 driver + auto-dock controller. -->
+  <arg name="start_realsense" default="true"/>
+  <arg name="tag_size" default="0.080"/>
+  <arg name="show_detection" default="true"/>
+  <arg name="dock_config" default="$(find go2w_parking)/config/auto_dock.yaml"/>
+
+  <include file="$(find go2w_vision)/launch/detect_tag.launch">
+    <arg name="start_realsense" value="$(arg start_realsense)"/>
+    <arg name="target_id" value="0"/>
+    <arg name="tag_size" value="$(arg tag_size)"/>
+    <arg name="show_detection" value="$(arg show_detection)"/>
+  </include>
+
+  <include file="$(find go2w_parking)/launch/auto_dock.launch">
+    <arg name="config" value="$(arg dock_config)"/>
+  </include>
+</launch>

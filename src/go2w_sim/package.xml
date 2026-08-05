@@ -2,7 +2,7 @@
 <package format="2">
   <name>go2w_sim</name>
   <version>0.1.0</version>
-  <description>Lightweight ROS1 navigation simulator with a simplified Unitree Go2-W model.</description>
+  <description>Lightweight ROS1 Gazebo simulator with simplified and official-visual Go2-W models.</description>
   <maintainer email="alaurb@foxmail.com">Alaurb</maintainer>
   <license>Apache-2.0</license>
 

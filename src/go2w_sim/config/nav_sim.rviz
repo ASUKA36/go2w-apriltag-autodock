@@ -41,16 +41,6 @@ Visualization Manager:
       Topic: /sim/path
       Color: 30; 170; 255
       Enabled: true
-    - Class: rviz/Path
-      Name: Global Plan
-      Topic: /move_base/NavfnROS/plan
-      Color: 0; 255; 0
-      Enabled: true
-    - Class: rviz/Path
-      Name: Local Plan
-      Topic: /move_base/TrajectoryPlannerROS/local_plan
-      Color: 255; 120; 0
-      Enabled: true
   Global Options:
     Background Color: 35; 35; 35
     Fixed Frame: map
@@ -61,8 +51,6 @@ Visualization Manager:
     - Class: rviz/MoveCamera
     - Class: rviz/SetInitialPose
       Topic: /initialpose
-    - Class: rviz/SetGoal
-      Topic: /move_base_simple/goal
   Views:
     Current:
       Class: rviz/Orbit
