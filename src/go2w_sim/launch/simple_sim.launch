@@ -4,26 +4,33 @@
   <arg name="rviz" default="false"/>
   <arg name="camera" default="true"/>
   <arg name="control" default="true"/>
+  <arg name="physics" default="true"/>
   <arg name="official_visual" default="false"/>
   <arg name="paused" default="false"/>
   <arg name="world" default="$(find go2w_sim)/worlds/nav_world.world"/>
   <arg name="map_config" default="$(find go2w_sim)/config/world.yaml"/>
+  <arg name="publish_map" default="true"/>
+  <arg name="model_name" default="go2w_simple"/>
+  <arg name="spawn_x" default="-4.5"/>
+  <arg name="spawn_y" default="-3.5"/>
+  <arg name="spawn_z" default="0.08"/>
+  <arg name="spawn_yaw" default="0.0"/>
 
   <param name="use_sim_time" value="true"/>
   <param name="robot_description"
-         command="$(find xacro)/xacro $(find go2w_sim)/urdf/go2w_stick.urdf.xacro camera:=$(arg camera) physics:=true control:=$(arg control) official_visual:=$(arg official_visual)"/>
+         command="$(find xacro)/xacro $(find go2w_sim)/urdf/go2w_stick.urdf.xacro camera:=$(arg camera) physics:=$(arg physics) control:=$(arg control) official_visual:=$(arg official_visual)"/>
 
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
     <arg name="world_name" value="$(arg world)"/>
     <arg name="gui" value="$(arg gui)"/>
-    <!-- Always spawn paused: spawn_model applies -J values after a delay. -->
     <arg name="paused" value="true"/>
     <arg name="use_sim_time" value="true"/>
     <arg name="verbose" value="false"/>
   </include>
 
-  <node pkg="gazebo_ros" type="spawn_model" name="spawn_go2w_physics"
-        args="-urdf -param robot_description -model go2w_physics -x -4.5 -y -3.5 -z 0.08
+  <node pkg="gazebo_ros" type="spawn_model" name="spawn_go2w"
+        args="-urdf -param robot_description -model $(arg model_name)
+              -x $(arg spawn_x) -y $(arg spawn_y) -z $(arg spawn_z) -Y $(arg spawn_yaw)
               -J FL_hip_joint 0.0 -J FL_thigh_joint 0.72 -J FL_calf_joint -1.45
               -J FR_hip_joint 0.0 -J FR_thigh_joint 0.72 -J FR_calf_joint -1.45
               -J RL_hip_joint 0.0 -J RL_thigh_joint 0.72 -J RL_calf_joint -1.45
@@ -34,8 +41,7 @@
         name="robot_state_publisher" output="screen">
     <param name="publish_frequency" value="50.0"/>
   </node>
-
-  <node pkg="go2w_sim" type="world_map_node.py" name="world_map" output="screen">
+  <node if="$(arg publish_map)" pkg="go2w_sim" type="world_map_node.py" name="world_map" output="screen">
     <rosparam command="load" file="$(arg map_config)"/>
   </node>
   <node pkg="tf" type="static_transform_publisher" name="map_to_odom"
@@ -44,7 +50,6 @@
         name="unpause_after_spawn" output="screen">
     <param name="delay" value="2.5"/>
   </node>
-
   <node if="$(arg rviz)" pkg="rviz" type="rviz" name="rviz"
         args="-d $(find go2w_sim)/config/nav_sim.rviz"/>
 </launch>

@@ -1,9 +1,0 @@
-<launch>
-  <include file="$(find go2w_sim)/launch/sim.launch">
-    <arg name="gui" value="false"/>
-    <arg name="rviz" value="false"/>
-    <arg name="camera" value="true"/>
-  </include>
-  <node pkg="go2w_sim" type="vision_test.py" name="go2w_sim_vision_test"
-        output="screen" required="true"/>
-</launch>

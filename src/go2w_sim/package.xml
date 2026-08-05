@@ -21,6 +21,8 @@
   <depend>tf</depend>
   <depend>xacro</depend>
   <exec_depend>gazebo_plugins</exec_depend>
+  <exec_depend>go2w_parking</exec_depend>
+  <exec_depend>go2w_vision</exec_depend>
 
   <export/>
 </package>

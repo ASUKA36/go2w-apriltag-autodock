@@ -48,6 +48,18 @@ class Go2WPlanarPlugin : public ModelPlugin {
         "FL_foot_joint", "FR_foot_joint", "RL_foot_joint", "RR_foot_joint"};
     for (const auto& name : wheel_names) wheel_joints_.push_back(model_->GetJoint(name));
 
+    // The planar model is kinematic by design.  Leaving individual links in
+    // the physics solver lets contact impulses accumulate between pose
+    // updates, which makes the detailed official meshes visibly shake or
+    // fling their legs.  Remove every link from dynamics while keeping ray
+    // sensors and collision geometry available to Gazebo.
+    for (const auto& link : model_->GetLinks()) {
+      link->SetGravityMode(false);
+      link->SetKinematic(true);
+      link->SetLinearVel(ignition::math::Vector3d::Zero);
+      link->SetAngularVel(ignition::math::Vector3d::Zero);
+    }
+
     initial_pose_ = model_->WorldPose();
     pose_ = initial_pose_;
     cmd_sub_ = nh_->subscribe(cmd_topic_, 1, &Go2WPlanarPlugin::OnCommand, this);
@@ -126,13 +138,13 @@ class Go2WPlanarPlugin : public ModelPlugin {
                               0.0, 1.35, -2.55, 0.0, 1.35, -2.55};
     for (size_t i = 0; i < leg_joints_.size(); ++i)
       if (leg_joints_[i])
-        leg_joints_[i]->SetPosition(0, stand[i] + posture_ * (prone[i] - stand[i]), true);
+        leg_joints_[i]->SetPosition(0, stand[i] + posture_ * (prone[i] - stand[i]), false);
     const double left = -(linear_ - angular_ * 0.24) / 0.10;
     const double right = -(linear_ + angular_ * 0.24) / 0.10;
     const double wheel_speed[4] = {left, right, left, right};
     for (size_t i = 0; i < wheel_joints_.size(); ++i) {
       wheel_angle_[i] = std::remainder(wheel_angle_[i] + wheel_speed[i] * dt, 2.0 * M_PI);
-      if (wheel_joints_[i]) wheel_joints_[i]->SetPosition(0, wheel_angle_[i], true);
+      if (wheel_joints_[i]) wheel_joints_[i]->SetPosition(0, wheel_angle_[i], false);
     }
     PublishOdometry(now);
   }

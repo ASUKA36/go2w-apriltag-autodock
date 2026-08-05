@@ -6,7 +6,6 @@
   <node pkg="go2w_parking" type="parking_sim.py" name="parking_sim" output="screen">
     <rosparam command="load" file="$(arg config)"/>
   </node>
-
   <node if="$(arg rviz)" pkg="rviz" type="rviz" name="parking_rviz"
         args="-d $(find go2w_parking)/config/parking.rviz"/>
 </launch>

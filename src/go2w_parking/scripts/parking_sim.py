@@ -231,6 +231,45 @@ class ParkingSim:
     def point_in_wall(self, x, y):
         return any(abs(x - wx) <= sx / 2.0 and abs(y - wy) <= sy / 2.0 for wx, wy, sx, sy in self.walls)
 
+    @staticmethod
+    def segment_intersects_rectangle(x0, y0, x1, y1, wall, endpoint_margin=1e-3):
+        """Return true when a wall blocks the open segment from camera to target.
+
+        The slab test is deterministic and avoids sampling holes through thin
+        walls.  Intersections at the target endpoint are ignored so a tag may
+        be mounted directly on the front face of the kennel back wall.
+        """
+        wx, wy, sx, sy = wall
+        lower = (wx - sx / 2.0, wy - sy / 2.0)
+        upper = (wx + sx / 2.0, wy + sy / 2.0)
+        direction = (x1 - x0, y1 - y0)
+        start = (x0, y0)
+        t_min, t_max = 0.0, 1.0
+        for axis in range(2):
+            if abs(direction[axis]) < 1e-12:
+                if start[axis] < lower[axis] or start[axis] > upper[axis]:
+                    return False
+                continue
+            inverse = 1.0 / direction[axis]
+            enter = (lower[axis] - start[axis]) * inverse
+            leave = (upper[axis] - start[axis]) * inverse
+            if enter > leave:
+                enter, leave = leave, enter
+            t_min = max(t_min, enter)
+            t_max = min(t_max, leave)
+            if t_min > t_max:
+                return False
+        return t_max > endpoint_margin and t_min < 1.0 - endpoint_margin
+
+    def tag_has_line_of_sight(self):
+        return not any(self.segment_intersects_rectangle(
+            self.x, self.y, self.tag_x, self.tag_y, wall) for wall in self.walls)
+
+    def tag_is_visible(self, optical_z, distance, bearing):
+        return (optical_z > 0.0 and distance <= self.tag_max_range
+                and abs(bearing) <= self.tag_half_fov
+                and self.tag_has_line_of_sight())
+
     def update_parking_state(self, now):
         gx, gy, gyaw = self.goal
         position_ok = math.hypot(self.x - gx, self.y - gy) <= self.goal_pos_tol
@@ -341,7 +380,7 @@ class ParkingSim:
         optical_x = s * dx - c * dy
         optical_z = c * dx + s * dy
         bearing = math.atan2(optical_x, optical_z)
-        if optical_z <= 0.0 or math.hypot(dx, dy) > self.tag_max_range or abs(bearing) > self.tag_half_fov:
+        if not self.tag_is_visible(optical_z, math.hypot(dx, dy), bearing):
             return message
 
         detection = AprilTagDetection()
@@ -387,18 +426,17 @@ class ParkingSim:
     def make_camera_image(self, stamp):
         width, height = self.camera_width, self.camera_height
         data = bytearray((34, 38, 44)) * (width * height)
-        # A simple charging-station panel gives the operator visual context.
-        self.fill_rect(data, width, height, width*0.30, height*0.18,
-                       width*0.70, height*0.92, (70, 74, 80))
-
         dx, dy = self.tag_x - self.x, self.tag_y - self.y
         c, s = math.cos(self.yaw), math.sin(self.yaw)
         optical_x = s * dx - c * dy
         optical_z = c * dx + s * dy
         bearing = math.atan2(optical_x, optical_z)
-        visible = (optical_z > 0.0 and math.hypot(dx, dy) <= self.tag_max_range
-                   and abs(bearing) <= self.tag_half_fov)
+        visible = self.tag_is_visible(optical_z, math.hypot(dx, dy), bearing)
         if visible:
+            # Only render the charging panel when the same line-of-sight test
+            # used by /tag_detections says that the wall does not occlude it.
+            self.fill_rect(data, width, height, width*0.30, height*0.18,
+                           width*0.70, height*0.92, (70, 74, 80))
             center_x = width/2.0 + self.camera_fx * optical_x / optical_z
             center_y = height*0.43
             side = clamp(self.camera_fx * self.tag_size / optical_z, 10.0, height*0.62)

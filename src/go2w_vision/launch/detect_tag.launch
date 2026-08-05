@@ -10,6 +10,9 @@
   <arg name="enable_imu" default="false"/>
   <arg name="align_depth" default="false"/>
   <arg name="show_detection" default="true"/>
+  <!-- Gazebo may advertise its image topic before the first valid frame.
+       Keep zero for real D435i; 3-D simulation supplies a short delay. -->
+  <arg name="detector_start_delay" default="0.0"/>
 
   <include if="$(arg start_realsense)" file="$(find realsense2_camera)/launch/rs_camera.launch">
     <arg name="enable_color" value="true"/>
@@ -22,7 +25,8 @@
   </include>
 
   <node pkg="apriltag_ros" type="apriltag_ros_continuous_node"
-        name="apriltag_detector" output="screen">
+        name="apriltag_detector" output="screen"
+        launch-prefix="bash -c 'sleep $(arg detector_start_delay); exec &quot;$@&quot;' --">
     <remap from="image_rect" to="$(arg image_topic)"/>
     <remap from="camera_info" to="$(arg camera_info_topic)"/>
     <rosparam command="load" file="$(find go2w_vision)/config/settings.yaml"/>

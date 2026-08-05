@@ -3,16 +3,16 @@ target_distance: 0.60
 approach_distance: 1.15
 fine_align_distance: 0.82
 
-kp_forward: 0.65
+kp_forward: 0.55
 kp_lateral: 0.95
 kp_bearing: 1.5
 kp_facing: 1.2
-max_approach_speed: 0.52
-max_final_speed: 0.16
-max_lateral_speed: 0.24
-max_angular_speed: 0.75
-search_angular_speed: 0.25
-lidar_seek_speed: 0.22
+max_approach_speed: 0.38
+max_final_speed: 0.12
+max_lateral_speed: 0.18
+max_angular_speed: 0.60
+search_angular_speed: 0.20
+lidar_seek_speed: 0.16
 lidar_reacquire_stop_distance: 0.72
 prealign_lateral_tolerance: 0.06
 prealign_facing_tolerance_deg: 6.0

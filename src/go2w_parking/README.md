@@ -10,7 +10,7 @@
 启动：
 
 ```bash
-roslaunch go2w_parking parking_sim.launch
+roslaunch go2w_sim parking2_sim.launch
 ```
 
 手动测试可复用现有键盘节点（W/S 前后、A/D 横移、Q/E 转向）：
@@ -38,7 +38,7 @@ rosrun go2w_sim teleop_keyboard.py
 生成 `/scan`。先启动仿真与 RViz（不启动停车算法）：
 
 ```bash
-roslaunch go2w_parking parking_sim.launch
+roslaunch go2w_sim parking2_sim.launch
 ```
 
 RViz 会同时显示 `/scan` 的 Mid-360 二维扫描点和 `/camera/color/image_raw`
@@ -47,6 +47,9 @@ RViz 会同时显示 `/scan` 的 Mid-360 二维扫描点和 `/camera/color/image
 ```bash
 roslaunch go2w_parking auto_dock.launch
 ```
+
+二维模拟相机具有墙体遮挡：相机到 Tag 的视线只要与狗窝墙体相交，图像中的 Tag
+和 `/tag_detections` 会同时消失；重新获得无遮挡视线后才恢复。
 
 `auto_dock.py` 只订阅 `/tag_detections` 和 `/scan`，不读取地图、里程计或仿真真值。状态为：
 
@@ -83,3 +86,31 @@ rostopic echo /auto_dock/lidar_heading_error
 泊车目标不是 Tag 本身的位置，而是配置文件中标定的“相机到 Tag 的充电位距离”。
 仿真默认为 `0.60 m`，真机使用前必须按充电板、相机和 Tag 安装关系重新标定。
 控制参数见 `config/auto_dock.yaml`。
+
+## 三维泊车场景
+
+三维场景保留相同的 `/scan`、`/camera/color/image_raw`、`/tag_detections` 和
+`/cmd_vel` 接口，并使用宇树官方 Go2-W 网格外观。Gazebo 墙体具有碰撞和真实射线
+遮挡，相机看不到墙后的 Tag，激光也只能返回最先命中的表面。
+
+终端 1：
+
+```bash
+roslaunch go2w_sim parking3_sim.launch
+```
+
+终端 2：
+
+```bash
+roslaunch go2w_parking auto_dock.launch
+```
+
+默认运动模式支持 Go2-W 式前后、横移和原地转向。使用以下命令可以切换到官方
+外观搭配接触驱动轮式动力学的对比模式：
+
+```bash
+roslaunch go2w_sim parking3_sim.launch physics:=true
+```
+
+固定轮物理模式会忽略 `linear.y`，主要用于观察动力学效果，而不是运行依赖横移的
+完整自动泊车流程。

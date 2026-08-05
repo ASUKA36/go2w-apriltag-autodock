@@ -50,7 +50,7 @@ source devel/setup.bash
 
 ```bash
 source ~/go2w_ws/devel/setup.bash
-roslaunch go2w_parking parking_sim.launch
+roslaunch go2w_sim parking2_sim.launch
 ```
 
 RViz 显示：
@@ -67,6 +67,9 @@ RViz 显示：
 source ~/go2w_ws/devel/setup.bash
 roslaunch go2w_parking auto_dock.launch
 ```
+
+二维相机会对“相机到 Tag”的线段执行墙体遮挡检测。Tag 被任意狗窝墙遮住时，
+模拟图像不再绘制充电板和 Tag，`/tag_detections` 也会同步变为空数组。
 
 状态流程：
 
@@ -136,10 +139,32 @@ D435i 默认关闭深度、红外和 IMU，以减少 WSL USB 转发错误。真�
 
 ## 3. Go2-W 三维仿真
 
+三维自动泊车场景使用宇树官方 Go2-W 网格外观、带碰撞体的 U 形狗窝、
+Gazebo 激光和 RGB-D 相机。终端 1 启动场景与传感器：
+
+```bash
+roslaunch go2w_sim parking3_sim.launch
+```
+
+终端 2 启动同一个无地图泊车控制器：
+
+```bash
+roslaunch go2w_parking auto_dock.launch
+```
+
+默认使用支持 `linear.x/linear.y/angular.z` 的轻量平面运动插件，适合验证泊车算法；
+如需比较固定轮接触动力学，可运行：
+
+```bash
+roslaunch go2w_sim parking3_sim.launch physics:=true
+```
+
+物理模式的固定轮不会执行横移指令，因此不建议用它验证依赖 `linear.y` 的完整泊车流程。
+
 轻量球棍动力学模型：
 
 ```bash
-roslaunch go2w_sim physics_sim.launch
+roslaunch go2w_sim simple_sim.launch
 ```
 
 宇树官方网格外观版本：
@@ -154,11 +179,8 @@ roslaunch go2w_sim unitree_sim.launch
 roslaunch go2w_sim unitree_sim.launch rviz:=true
 ```
 
-快速平面仿真仍可使用：
-
-```bash
-roslaunch go2w_sim sim.launch
-```
+`go2w_sim/launch` 只保留四个仿真入口：`simple_sim.launch`、
+`unitree_sim.launch`、`parking2_sim.launch` 和 `parking3_sim.launch`。
 
 ## 许可证
 
