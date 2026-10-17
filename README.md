@@ -1,35 +1,35 @@
 # go2w-apriltag-autodock
 
-面向 **Unitree Go2-W** 的无地图自动入库（对接充电）方案：用 **AprilTag (`tag36h11`)** 相对位姿引导轮足机器狗进入狭窄充电仓，可选 Mid-360 激光辅助终段对准。
+Map-free auto-docking for **Unitree Go2-W**. The robot uses **AprilTag (`tag36h11`)** relative pose to enter a narrow charging bay. Mid-360 lidar can assist the final approach.
 
-仓库提供：
+This repo includes:
 
-- Go2-W 的 ROS1 / Gazebo 仿真（2D 轻量验证 + 3D 官方外观狗窝）
-- 无地图自动泊狗状态机（预对准 → 入仓 → 趴下）
-- 真机 D435i + AprilTag 检测入口
+- ROS1 / Gazebo simulation of Go2-W (lightweight 2D tests plus a 3D official-mesh kennel)
+- A map-free docking state machine (pre-align → enter bay → crouch)
+- A real-robot entry point for D435i + AprilTag detection
 
 > GitHub: https://github.com/ASUKA36/go2w-apriltag-autodock
 
-## 特性
+## Features
 
-- **无全局地图 / 无里程计依赖**：控制器主要订阅 `/tag_detections`（及可选 `/scan`），适合固定充电仓场景
-- **分阶段对接**：`PREALIGN_GATE`（仓外预对准）→ `ENTER_BAY`（入仓）→ `CROUCH`（趴下）
-- **可横移底盘控制**：同时使用 `linear.x / linear.y / angular.z`
-- **仿真与真机同一控制包**：`go2w_parking`，通过不同 launch 切换
+- **No global map or odometry dependency.** The controller mainly subscribes to `/tag_detections` (and optionally `/scan`), which fits a fixed charging bay.
+- **Staged docking:** `PREALIGN_GATE` (pre-align outside the bay) → `ENTER_BAY` → `CROUCH`.
+- **Holonomic chassis commands:** `linear.x`, `linear.y`, and `angular.z` are used together.
+- **Same control package for sim and hardware:** `go2w_parking`, selected by launch files.
 
-## 系统结构
+## Layout
 
 ```text
 go2w-apriltag-autodock/
 ├── src/
-│   ├── go2w_sim/       # Go2-W 模型、Gazebo 世界、传感器与键盘遥控
-│   ├── go2w_parking/   # 泊车场景、预测轨迹、无地图自动对接控制器
-│   └── go2w_vision/    # 真机 D435i + tag36h11 检测
-├── LICENSE             # Apache-2.0（本仓库自有代码）
-└── NOTICE              # 宇树官方网格来源说明（BSD-3-Clause）
+│   ├── go2w_sim/       # Go2-W model, Gazebo worlds, sensors, keyboard teleop
+│   ├── go2w_parking/   # parking scene, predicted path, map-free docking controller
+│   └── go2w_vision/    # real D435i + tag36h11 detection
+├── LICENSE             # Apache-2.0 for this repo's own code
+└── NOTICE              # Unitree mesh provenance (BSD-3-Clause)
 ```
 
-数据流（示意）：
+Data flow:
 
 ```text
 Mid-360 /scan  ──────────────┐
@@ -37,11 +37,11 @@ Mid-360 /scan  ──────────────┐
 D435i /tag_detections ───────┘
 ```
 
-## 环境依赖
+## Requirements
 
-- Ubuntu 20.04（或 WSL2）
+- Ubuntu 20.04 (or WSL2)
 - ROS1 Noetic
-- Gazebo、RViz、`apriltag_ros`、`realsense2_camera`（真机）
+- Gazebo, RViz, `apriltag_ros`, and `realsense2_camera` (hardware)
 
 ```bash
 sudo apt update
@@ -50,7 +50,7 @@ sudo apt install ros-noetic-gazebo-ros-pkgs ros-noetic-gazebo-plugins \
   ros-noetic-apriltag-ros ros-noetic-realsense2-camera ros-noetic-image-view
 ```
 
-## 编译
+## Build
 
 ```bash
 git clone https://github.com/ASUKA36/go2w-apriltag-autodock.git go2w_ws
@@ -59,37 +59,37 @@ catkin_make
 source devel/setup.bash
 ```
 
-## 快速开始
+## Quick start
 
-### 1) 二维自动泊狗仿真（推荐先跑这个）
+### 1) 2D auto-dock simulation (recommended first)
 
-终端 1 — 仿真 + 模拟 Mid-360 / D435i + RViz：
+Terminal 1 — simulation, mocked Mid-360 / D435i, and RViz:
 
 ```bash
 source ~/go2w_ws/devel/setup.bash
 roslaunch go2w_sim parking2_sim.launch
 ```
 
-终端 2 — 对接控制器：
+Terminal 2 — docking controller:
 
 ```bash
 source ~/go2w_ws/devel/setup.bash
 roslaunch go2w_parking auto_dock.launch
 ```
 
-状态流程：
+State flow:
 
 ```text
 PREALIGN_GATE -> ENTER_BAY -> CROUCH
 ```
 
-| 阶段 | 作用 |
+| Stage | Role |
 |------|------|
-| `PREALIGN_GATE` | 仓外按 Tag 法向 / 横向 / 前方距离完成预对准 |
-| `ENTER_BAY` | Tag + 左右墙激光引导入仓，近距可切激光终段 |
-| `CROUCH` | 停车并发布趴下指令 |
+| `PREALIGN_GATE` | Align outside the bay using Tag normal, lateral error, and front range |
+| `ENTER_BAY` | Tag plus left/right wall lidar guide the robot in; near the board it can switch to a lidar-only final stage |
+| `CROUCH` | Stop and publish a lie-down command |
 
-常用监视：
+Useful topics:
 
 ```bash
 rostopic echo /auto_dock/state
@@ -97,93 +97,93 @@ rostopic echo /auto_dock/success
 rostopic echo /cmd_vel
 ```
 
-重置二维场景：
+Reset the 2D scene:
 
 ```bash
 rosservice call /parking/reset
 ```
 
-手动遥控（不要同时开 `auto_dock`）：
+Manual teleop (do not start `auto_dock` at the same time):
 
 ```bash
 rosrun go2w_sim teleop_keyboard.py
 ```
 
-按键：`W/S` 前后，`A/D` 横移，`Q/E` 转向，松键停止。
+Keys: `W/S` forward/back, `A/D` strafe, `Q/E` yaw. Release a key to stop.
 
-### 2) 三维狗窝仿真
+### 2) 3D kennel simulation
 
 ```bash
-# 终端 1
+# terminal 1
 roslaunch go2w_sim parking3_sim.launch
 
-# 终端 2
+# terminal 2
 roslaunch go2w_parking auto_dock.launch
 ```
 
-默认使用平面运动插件（支持横移），适合验证算法。若要对比接触动力学：
+The default planar motion plugin supports strafing and is meant for algorithm checks. To compare contact dynamics:
 
 ```bash
 roslaunch go2w_sim parking3_sim.launch physics:=true
 ```
 
-> 物理模式下固定轮不执行横移，不适合完整验证依赖 `linear.y` 的流程。
+> In physics mode the fixed wheels do not execute strafe, so it is not a full check of a `linear.y` docking flow.
 
-其它仿真入口：
+Other sim entries:
 
-| 命令 | 说明 |
+| Command | Description |
 |------|------|
-| `roslaunch go2w_sim simple_sim.launch` | 球棍外观、接触驱动 |
-| `roslaunch go2w_sim unitree_sim.launch` | 宇树官方外观 |
-| `roslaunch go2w_sim unitree_sim.launch rviz:=true` | 官方外观 + RViz |
+| `roslaunch go2w_sim simple_sim.launch` | Stick model, contact-driven wheels |
+| `roslaunch go2w_sim unitree_sim.launch` | Official Unitree mesh |
+| `roslaunch go2w_sim unitree_sim.launch rviz:=true` | Official mesh + RViz |
 
-### 3) 真机自动对接
+### 3) Real-robot docking
 
-先确认 Mid-360 已提供 `/scan`，再：
+Confirm Mid-360 is publishing `/scan`, then:
 
 ```bash
 source ~/go2w_ws/devel/setup.bash
 roslaunch go2w_parking auto_dock_real.launch
 ```
 
-会启动：D435i 彩色流、`tag36h11` ID 0 检测、检测可视化、自动对接控制器。
+This starts the D435i color stream, `tag36h11` ID 0 detection, a detection view, and the docking controller.
 
-上真机前请完成：
+Before running on hardware, set:
 
-- D435i / Mid-360 到 `base_link` 外参
-- Tag 黑色边框实际尺寸（默认配置见 `go2w_vision`）
-- 充电位目标距离与 `/cmd_vel` ↔ 宇树 SDK `Move(vx, vy, vyaw)` 适配
+- D435i / Mid-360 extrinsics to `base_link`
+- The real black-border size of the Tag (defaults live in `go2w_vision`)
+- Charging-bay target range and `/cmd_vel` ↔ Unitree SDK `Move(vx, vy, vyaw)` mapping
 
-主要参数文件：
+Main parameter files:
 
 - `src/go2w_parking/config/auto_dock.yaml`
 - `src/go2w_vision/launch/detect_tag.launch`
 - `src/go2w_vision/config/settings.yaml`
 
-## 默认关键参数（可改）
+## Default parameters
 
-来自 `auto_dock.yaml`：
+From `auto_dock.yaml`:
 
-| 参数 | 默认 | 含义 |
+| Parameter | Default | Meaning |
 |------|------|------|
-| `gate_front_distance` | 1.50 m | 仓外预对准前距 |
-| `target_distance` | 0.35 m | 最终停车距离 |
-| `max_approach_speed` | 0.38 m/s | 接近限速 |
-| `max_final_speed` | 0.12 m/s | 终段限速 |
-| `max_lateral_speed` | 0.18 m/s | 横移限速 |
-| `max_angular_speed` | 0.60 rad/s | 转向限速 |
+| `gate_front_distance` | 1.50 m | Front range at the outside pre-align gate |
+| `target_distance` | 0.35 m | Final stop range |
+| `max_approach_speed` | 0.38 m/s | Approach speed limit |
+| `max_final_speed` | 0.12 m/s | Final-stage speed limit |
+| `max_lateral_speed` | 0.18 m/s | Strafe speed limit |
+| `max_angular_speed` | 0.60 rad/s | Yaw rate limit |
 
-仿真成功条件当前以位姿稳定后发布 `/auto_dock/success=true` 为准；真机充电建议再结合 BMS / 充电电流做最终确认。
+Simulation success is currently `/auto_dock/success=true` after the pose hold. On a real robot, confirm charging with BMS / charge current as well.
 
-## 网格与许可证
+## Meshes and license
 
-- 本仓库自有代码：**Apache-2.0**（见 `LICENSE`）
-- Go2-W 外观网格来自 [Unitree unitree_ros](https://github.com/unitreerobotics/unitree_ros/tree/master/robots/go2w_description)，按 **BSD-3-Clause** 分发（见 `NOTICE` 与 `src/go2w_sim/meshes/go2w_official/LICENSE`）
+- Code in this repository: **Apache-2.0** (`LICENSE`)
+- Go2-W visual meshes come from [Unitree unitree_ros](https://github.com/unitreerobotics/unitree_ros/tree/master/robots/go2w_description) and are redistributed under **BSD-3-Clause** (see `NOTICE` and `src/go2w_sim/meshes/go2w_official/LICENSE`)
 
-## 说明与边界
+## Notes and limits
 
-- 新流程从**已能看见 Tag** 的仓外预对准位开始，不包含远距离搜索 Tag。
-- Tag 丢失时控制器停车，不会在仓内盲目搜索。
-- 二维模拟相机会做墙体遮挡：视线被狗窝墙挡住时，`/tag_detections` 为空。
+- The current flow starts from a pre-align pose **where the Tag is already visible**. It does not search for the Tag from far away.
+- If the Tag is lost, the controller stops. It will not wander inside the bay.
+- The 2D mock camera applies wall occlusion: `/tag_detections` is empty when a kennel wall blocks the line of sight.
 
-欢迎 Issue / PR 反馈仿真与真机部署问题。
+Issues and PRs about simulation or hardware bring-up are welcome.
