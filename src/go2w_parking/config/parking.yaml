@@ -23,6 +23,15 @@ initial_x: -2.0
 initial_y: 0.0
 initial_yaw: 0.0
 
+# PREALIGN_GATE visualization — keep in sync with auto_dock.yaml.
+# 2-D sim measures both /scan and Tag z from the robot origin, so
+# origin_x = tag_x - prealign_front_distance  (1.25 - 1.50 = -0.25 m).
+show_prealign_zone: true
+prealign_front_distance: 1.50
+prealign_front_tolerance: 0.05
+prealign_lateral_tolerance: 0.06
+prealign_facing_tolerance_deg: 3.0
+
 # U-shaped kennel. The opening faces -x. Wall height is 1.2 m (3-D world).
 kennel_back_x: 1.29
 kennel_front_x: 0.0

@@ -8,3 +8,9 @@ log/
 __pycache__/
 .idea/
 .vscode/
+
+# Local report / documentation artifacts (not part of the shipped code)
+*.docx
+实习报告*
+入库状态机场地范围示意图.png
+draw_dock_field.py

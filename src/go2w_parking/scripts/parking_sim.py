@@ -87,6 +87,11 @@ class ParkingSim:
         self.tag_y = get("~tag_y", 0.0)
         self.tag_max_range = get("~tag_max_range", 4.0)
         self.tag_half_fov = math.radians(get("~tag_horizontal_fov_deg", 80.0) / 2.0)
+        self.show_prealign = bool(get("~show_prealign_zone", True))
+        self.prealign_front = get("~prealign_front_distance", 1.50)
+        self.prealign_front_tol = get("~prealign_front_tolerance", 0.05)
+        self.prealign_lat_tol = get("~prealign_lateral_tolerance", 0.06)
+        self.prealign_facing_deg = get("~prealign_facing_tolerance_deg", 3.0)
         self.camera_width = int(get("~camera_width", 424))
         self.camera_height = int(get("~camera_height", 240))
         self.camera_fx = get("~camera_fx", 310.0)
@@ -564,10 +569,68 @@ class ParkingSim:
         markers.append(self.text_marker(
             25, self.spawn_center_x, self.spawn_center_y - 1.15, 0.12,
             "SPAWN 2x2 @ 2m", stamp, self.color(0.75, 0.55, 0.05)))
+        if self.show_prealign:
+            markers.extend(self.make_prealign_markers(stamp))
         status_text = "PARKED" if self.parked else ("COLLISION" if self.collision else "RUNNING")
         markers.append(self.text_marker(22, self.goal[0], -0.92, 0.24, status_text,
                                         stamp, self.color(0.05, 0.65, 0.12)))
         return MarkerArray(markers)
+
+    def make_prealign_markers(self, stamp):
+        """Mark PREALIGN_GATE in the same frame/scale as kennel and dog.
+
+        Front-lidar / Tag-z gate is measured from the robot origin to the
+        inner face of the back wall, which is also tag_x in this simulator.
+        """
+        markers = []
+        gate_x = self.tag_x - self.prealign_front
+        band_sx = 2.0 * self.prealign_front_tol
+        band_sy = 2.0 * self.prealign_lat_tol
+        # Distance band across the kennel mouth (visual; gate is the inner box).
+        mouth = 2.0 * self.half_width
+        dist_band = self.cube_marker(
+            40, "map", gate_x, 0.0, band_sx, mouth,
+            self.color(0.20, 0.85, 0.35, 0.22), stamp)
+        dist_band.pose.position.z = 0.02
+        dist_band.scale.z = 0.03
+        markers.append(dist_band)
+        # Actual origin gate: 1.50±0.05 m, |y|≤0.06 m.
+        origin_gate = self.cube_marker(
+            41, "map", gate_x, 0.0, band_sx, band_sy,
+            self.color(0.05, 0.70, 0.25, 0.55), stamp)
+        origin_gate.pose.position.z = 0.04
+        origin_gate.scale.z = 0.05
+        markers.append(origin_gate)
+        # Ghost dog footprint at the gate pose (same 1.20 x 0.80 as the live robot).
+        ghost = self.cube_marker(
+            42, "map", gate_x, 0.0, self.length, self.width,
+            self.color(0.15, 0.75, 0.30, 0.28), stamp, 0.0)
+        ghost.pose.position.z = 0.07
+        markers.append(ghost)
+        # 1.50 m range line: Tag/back-wall inner face -> robot origin.
+        rng = Marker()
+        rng.header.frame_id, rng.header.stamp = "map", stamp
+        rng.ns, rng.id, rng.type, rng.action = "parking", 43, Marker.LINE_STRIP, Marker.ADD
+        rng.pose.orientation.w = 1.0
+        rng.scale.x = 0.025
+        rng.color = self.color(0.05, 0.45, 0.18, 1.0)
+        p0, p1 = Point(), Point()
+        p0.x, p0.y, p0.z = self.tag_x, 0.12, 0.16
+        p1.x, p1.y, p1.z = gate_x, 0.12, 0.16
+        rng.points = [p0, p1]
+        markers.append(rng)
+        mid = 0.5 * (self.tag_x + gate_x)
+        markers.append(self.text_marker(
+            44, mid, 0.38, 0.22,
+            "PREALIGN  front=%.2f±%.2fm  lat=±%.0fcm  yaw=±%.0fdeg" % (
+                self.prealign_front, self.prealign_front_tol,
+                self.prealign_lat_tol * 100.0, self.prealign_facing_deg),
+            stamp, self.color(0.05, 0.45, 0.15)))
+        markers.append(self.text_marker(
+            45, gate_x, -self.width * 0.5 - 0.18, 0.16,
+            "GATE ORIGIN x=%.2f  dog %0.2fx%0.2f" % (gate_x, self.length, self.width),
+            stamp, self.color(0.05, 0.40, 0.15)))
+        return markers
 
     def text_marker(self, marker_id, x, y, z, text, stamp, color):
         marker = Marker()
